@@ -2,121 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Among Us - English Edition</title>
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background-color: #0f172a;
       color: #f8fafc;
       display: flex;
       flex-direction: column;
       align-items: center;
       margin: 0;
-      padding: 20px;
+      padding: 12px;
+      touch-action: manipulation;
     }
+    h1 { font-size: 1.5rem; text-align: center; margin: 10px 0; }
     .card {
       background: #1e293b;
-      padding: 20px;
+      padding: 16px;
       border-radius: 12px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       width: 100%;
-      max-width: 500px;
-      margin-bottom: 20px;
+      max-width: 480px;
+      margin-bottom: 15px;
       text-align: center;
     }
     input, button {
-      padding: 10px 15px;
-      margin: 5px;
-      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 6px 0;
+      border-radius: 8px;
       border: none;
       font-size: 16px;
+      width: 100%;
+      -webkit-tap-highlight-color: transparent;
     }
+    input { background: #0f172a; color: white; border: 1px solid #334155; }
     button {
       background-color: #3b82f6;
       color: white;
       cursor: pointer;
       font-weight: bold;
+      transition: background 0.2s, transform 0.1s;
     }
-    button:hover { background-color: #2563eb; }
-    .emergency-btn { background-color: #ef4444; }
-    .emergency-btn:hover { background-color: #dc2626; }
+    button:active { transform: scale(0.98); background-color: #1d4ed8; }
+    .emergency-btn { background-color: #ef4444; margin-top: 15px; }
+    .emergency-btn:active { background-color: #b91c1c; }
     .hidden { display: none; }
-    .role-badge {
-      font-size: 20px;
-      font-weight: bold;
-      padding: 5px 10px;
-      border-radius: 5px;
-    }
+    .role-badge { font-size: 18px; font-weight: bold; padding: 4px 8px; border-radius: 5px; }
     .impostor { color: #f87171; }
     .crewmate { color: #60a5fa; }
-    .opt-btn { display: block; width: 100%; margin: 8px 0; background: #334155; color: white;}
-    .opt-btn:hover { background: #475569; }
+    .opt-btn { background: #334155; color: white; text-align: left; }
+    .opt-btn:active { background: #475569; }
+    #feedback { font-weight: bold; margin-top: 10px; min-height: 24px; }
   </style>
 </head>
 <body>
 
-  <h1>🚀 Among Us: English Quest</h1>
+  <h1>🚀 Among Us: English</h1>
 
   <!-- SCREEN 1: LOBBY -->
   <div id="lobby-screen" class="card">
     <h2>Join Room</h2>
-    <input type="text" id="username" placeholder="Enter your Nickname">
+    <input type="text" id="username" placeholder="Enter Nickname">
     <button onclick="joinGame()">Join Game</button>
     
     <h3>Players in Lobby:</h3>
     <ul id="player-list" style="list-style: none; padding: 0;"></ul>
-    <button id="start-btn" onclick="startGame()" style="display:none;">Start Game 🚀</button>
+    <button id="start-btn" onclick="startGame()" style="display:none; background-color: #22c55e;">Start Game 🚀</button>
   </div>
 
   <!-- SCREEN 2: GAMEPLAY / TASKS -->
   <div id="game-screen" class="card hidden">
-    <div>Your Role: <span id="role-display" class="role-badge"></span></div>
-    <hr style="border-color: #334155; margin: 15px 0;">
+    <div>Role: <span id="role-display" class="role-badge"></span></div>
+    <hr style="border-color: #334155; margin: 12px 0;">
 
     <div id="task-box">
       <h3 id="task-question">Loading task...</h3>
       <div id="task-options"></div>
+      <div id="feedback"></div>
     </div>
 
-    <button class="emergency-btn" onclick="triggerEmergency()">🚨 Call Emergency Meeting</button>
+    <button class="emergency-btn" onclick="triggerEmergency()">🚨 Emergency Meeting</button>
   </div>
 
   <!-- SCREEN 3: DISCUSSION & VOTING -->
   <div id="discussion-screen" class="card hidden">
     <h2 style="color: #ef4444;">🚨 EMERGENCY MEETING 🚨</h2>
     <p>Discuss in English and vote out the suspect!</p>
-    <div id="voting-list"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    let myRole = '';
+    let currentQuestionObj = null;
 
     function joinGame() {
-      const name = document.getElementById('username').value;
+      const name = document.getElementById('username').value.trim();
       if (name) {
         socket.emit('joinGame', name);
-        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('start-btn').style.display = 'block';
       }
     }
 
-    function startGame() {
-      socket.emit('startGame');
-    }
+    function startGame() { socket.emit('startGame'); }
+    function triggerEmergency() { socket.emit('callEmergency'); }
 
-    function triggerEmergency() {
-      socket.emit('callEmergency');
-    }
-
-    // --- SOCKET LISTENERS ---
-
+    // --- LISTENERS ---
     socket.on('updatePlayers', (players) => {
       const list = document.getElementById('player-list');
       list.innerHTML = '';
       Object.values(players).forEach(p => {
         const li = document.createElement('li');
+        li.style.padding = '5px';
         li.textContent = `👨‍🚀 ${p.name}`;
         list.appendChild(li);
       });
@@ -128,15 +126,15 @@
       document.getElementById('game-screen').classList.remove('hidden');
 
       const me = data.players[socket.id];
-      myRole = me.role;
       const roleElem = document.getElementById('role-display');
-      roleElem.textContent = myRole;
-      roleElem.className = `role-badge ${myRole.toLowerCase()}`;
+      roleElem.textContent = me.role;
+      roleElem.className = `role-badge ${me.role.toLowerCase()}`;
 
       loadTask(data.question);
     });
 
     function loadTask(q) {
+      currentQuestionObj = q;
       document.getElementById('task-question').textContent = q.question;
       const optContainer = document.getElementById('task-options');
       optContainer.innerHTML = '';
@@ -145,10 +143,35 @@
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
         btn.textContent = opt;
-        btn.onclick = () => socket.emit('submitAnswer', idx);
+        btn.onclick = () => sendAnswer(idx);
         optContainer.appendChild(btn);
       });
     }
+
+    function sendAnswer(idx) {
+      if (!currentQuestionObj) return;
+      socket.emit('submitAnswer', {
+        questionText: currentQuestionObj.question,
+        answerIndex: idx
+      });
+    }
+
+    socket.on('taskResult', (data) => {
+      const feedback = document.getElementById('feedback');
+      if (data.correct) {
+        feedback.style.color = '#4ade80';
+        feedback.textContent = '✅ Correct task!';
+      } else {
+        feedback.style.color = '#f87171';
+        feedback.textContent = '❌ Wrong answer!';
+      }
+
+      // Carga la nueva pregunta después de medio segundo
+      setTimeout(() => {
+        feedback.textContent = '';
+        loadTask(data.nextQuestion);
+      }, 600);
+    });
 
     socket.on('startDiscussion', () => {
       document.getElementById('game-screen').classList.add('hidden');
