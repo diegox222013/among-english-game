@@ -24,7 +24,6 @@ let questionBank = [
 let players = {};
 let votes = {};
 let imposterId = null;
-let isSabotaged = false;
 
 io.on('connection', (socket) => {
   socket.on('joinGame', (username) => {
@@ -32,6 +31,7 @@ io.on('connection', (socket) => {
       id: socket.id,
       name: username,
       role: 'CREWMATE',
+      completedTasks: 0,
       isAlive: true
     };
     io.emit('updatePlayers', players);
@@ -47,11 +47,11 @@ io.on('connection', (socket) => {
     imposterId = ids[Math.floor(Math.random() * ids.length)];
     ids.forEach(id => {
       players[id].role = (id === imposterId) ? 'IMPOSTOR' : 'CREWMATE';
+      players[id].completedTasks = 0;
       players[id].isAlive = true;
     });
 
     votes = {};
-    isSabotaged = false;
     io.emit('gameStarted', { players, question: getNextQuestion() });
   });
 
@@ -59,35 +59,22 @@ io.on('connection', (socket) => {
     const currentQ = questionBank.find(q => q.question === data.questionText);
     const isCorrect = currentQ && currentQ.correct === data.answerIndex;
 
-    // Si el juego está saboteado y la respuesta es correcta, arreglan las luces
-    if (isSabotaged && isCorrect) {
-      isSabotaged = false;
-      io.emit('sabotageFixed');
+    // Solo los Crewmates aumentan su contador real de tareas completadas
+    if (isCorrect && players[socket.id] && players[socket.id].role === 'CREWMATE') {
+      players[socket.id].completedTasks += 1;
     }
 
     socket.emit('taskResult', { 
       correct: isCorrect, 
+      tasksDone: players[socket.id]?.completedTasks || 0,
       nextQuestion: getNextQuestion() 
     });
   });
 
-  // EVENTO DE SABOTAJE (solo emitido por el Impostor)
-  socket.on('triggerSabotage', () => {
-    if (socket.id === imposterId) {
-      isSabotaged = true;
-      io.emit('sabotageTriggered', {
-        question: {
-          question: "🚨 SABOTAGE! Fix the lights: 'The power ___ off!'",
-          options: ["went", "go", "gone"],
-          correct: 0
-        }
-      });
-    }
-  });
-
   socket.on('callEmergency', () => {
     votes = {};
-    io.emit('startDiscussion', players);
+    // Enviamos el registro real de tareas a la discusión
+    io.emit('startDiscussion', { players });
   });
 
   socket.on('castVote', (targetId) => {
@@ -95,8 +82,6 @@ io.on('connection', (socket) => {
     const alivePlayers = Object.values(players).filter(p => p.isAlive);
     if (Object.keys(votes).length >= alivePlayers.length) {
       processEjection();
-    } else {
-      io.emit('voteUpdate', { totalVotes: Object.keys(votes).length, required: alivePlayers.length });
     }
   });
 
@@ -139,6 +124,4 @@ function getNextQuestion() {
 }
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
