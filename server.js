@@ -8,11 +8,56 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// AQUÍ AGREGAREMOS LA MATERIA QUE ME VAYAS PASANDO
+// BANCO DE PREGUNTAS: VERBO TO BE (10 PREGUNTAS)
 let questionBank = [
   {
-    question: "What is the past tense of 'GO'?",
-    options: ["Goed", "Went", "Gone"],
+    question: "I ___ doing my tasks in Electrical.",
+    options: ["am", "is", "are"],
+    correct: 0
+  },
+  {
+    question: "She ___ not the Impostor, I saw her scan!",
+    options: ["am", "are", "is"],
+    correct: 2
+  },
+  {
+    question: "We ___ fixing the reactor together.",
+    options: ["was", "is", "are"],
+    correct: 2
+  },
+  {
+    question: "Blue ___ acting very sus in Navigation yesterday.",
+    options: ["were", "was", "are"],
+    correct: 1
+  },
+  {
+    question: "___ you in the cafeteria when the lights went out?",
+    options: ["Were", "Is", "Was"],
+    correct: 0
+  },
+  {
+    question: "They ___ all safe in the Security room.",
+    options: ["is", "am", "are"],
+    correct: 2
+  },
+  {
+    question: "It ___ a trap! Don't go to Weapons!",
+    options: ["are", "am", "is"],
+    correct: 2
+  },
+  {
+    question: "Where ___ the body reported?",
+    options: ["was", "were", "am"],
+    correct: 0
+  },
+  {
+    question: "Red and Green ___ not in the same room.",
+    options: ["is", "were", "was"],
+    correct: 1
+  },
+  {
+    question: "Who ___ the Impostor in the last round?",
+    options: ["were", "was", "are"],
     correct: 1
   }
 ];
