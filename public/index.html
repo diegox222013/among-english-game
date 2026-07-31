@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Segoe UI', Roboto, sans-serif;
       background-color: #0f172a;
       color: #f8fafc;
       display: flex;
@@ -15,9 +15,8 @@
       align-items: center;
       margin: 0;
       padding: 12px;
-      touch-action: manipulation;
+      transition: background-color 0.5s;
     }
-    h1 { font-size: 1.5rem; text-align: center; margin: 10px 0; }
     .card {
       background: #1e293b;
       padding: 16px;
@@ -35,33 +34,28 @@
       border: none;
       font-size: 16px;
       width: 100%;
-      -webkit-tap-highlight-color: transparent;
     }
     input { background: #0f172a; color: white; border: 1px solid #334155; }
-    button {
-      background-color: #3b82f6;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s, transform 0.1s;
-    }
-    button:active { transform: scale(0.98); background-color: #1d4ed8; }
-    .emergency-btn { background-color: #ef4444; margin-top: 15px; }
-    .emergency-btn:active { background-color: #b91c1c; }
+    button { background-color: #3b82f6; color: white; cursor: pointer; font-weight: bold; }
+    .sabotage-btn { background-color: #a855f7; margin-top: 10px; }
+    .emergency-btn { background-color: #ef4444; margin-top: 10px; }
+    .vote-btn { background-color: #f59e0b; margin: 4px 0; }
     .hidden { display: none; }
     .role-badge { font-size: 18px; font-weight: bold; padding: 4px 8px; border-radius: 5px; }
     .impostor { color: #f87171; }
     .crewmate { color: #60a5fa; }
     .opt-btn { background: #334155; color: white; text-align: left; }
-    .opt-btn:active { background: #475569; }
-    #feedback { font-weight: bold; margin-top: 10px; min-height: 24px; }
+    
+    /* MODO SABOTAJE (Oscurecimiento) */
+    body.dark-mode { background-color: #020617; }
+    .dark-card { background: #020617 !important; border: 2px solid #ef4444; }
   </style>
 </head>
 <body>
 
-  <h1>🚀 Among Us: English</h1>
+  <h1>🚀 Among Us: English Quest</h1>
 
-  <!-- SCREEN 1: LOBBY -->
+  <!-- LOBBY -->
   <div id="lobby-screen" class="card">
     <h2>Join Room</h2>
     <input type="text" id="username" placeholder="Enter Nickname">
@@ -72,30 +66,40 @@
     <button id="start-btn" onclick="startGame()" style="display:none; background-color: #22c55e;">Start Game 🚀</button>
   </div>
 
-  <!-- SCREEN 2: GAMEPLAY / TASKS -->
+  <!-- TASKS / GAMEPLAY -->
   <div id="game-screen" class="card hidden">
-    <div>Role: <span id="role-display" class="role-badge"></span></div>
+    <div>Your Role: <span id="role-display" class="role-badge"></span></div>
     <hr style="border-color: #334155; margin: 12px 0;">
 
     <div id="task-box">
       <h3 id="task-question">Loading task...</h3>
       <div id="task-options"></div>
-      <div id="feedback"></div>
+      <div id="feedback" style="font-weight: bold; margin-top: 10px;"></div>
     </div>
 
+    <!-- BOTÓN EXCLUSIVO DEL IMPOSTOR -->
+    <button id="sabotage-btn" class="sabotage-btn hidden" onclick="triggerSabotage()">⚡ Sabotage Lights</button>
     <button class="emergency-btn" onclick="triggerEmergency()">🚨 Emergency Meeting</button>
   </div>
 
-  <!-- SCREEN 3: DISCUSSION & VOTING -->
+  <!-- DISCUSSION & VOTING -->
   <div id="discussion-screen" class="card hidden">
     <h2 style="color: #ef4444;">🚨 EMERGENCY MEETING 🚨</h2>
-    <p>Discuss in English and vote out the suspect!</p>
+    <p>Who is acting suspicious? Vote out the suspect!</p>
+    <div id="voting-list"></div>
+    <div id="vote-status" style="margin-top: 10px; color: #94a3b8;"></div>
+  </div>
+
+  <!-- EJECTION RESULT -->
+  <div id="eject-screen" class="card hidden">
+    <div id="eject-text" style="font-size: 22px; font-weight: bold; padding: 20px;"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     let currentQuestionObj = null;
+    let myRole = '';
 
     function joinGame() {
       const name = document.getElementById('username').value.trim();
@@ -107,14 +111,13 @@
 
     function startGame() { socket.emit('startGame'); }
     function triggerEmergency() { socket.emit('callEmergency'); }
+    function triggerSabotage() { socket.emit('triggerSabotage'); }
 
-    // --- LISTENERS ---
     socket.on('updatePlayers', (players) => {
       const list = document.getElementById('player-list');
       list.innerHTML = '';
       Object.values(players).forEach(p => {
         const li = document.createElement('li');
-        li.style.padding = '5px';
         li.textContent = `👨‍🚀 ${p.name}`;
         list.appendChild(li);
       });
@@ -123,12 +126,19 @@
     socket.on('gameStarted', (data) => {
       document.getElementById('lobby-screen').classList.add('hidden');
       document.getElementById('discussion-screen').classList.add('hidden');
+      document.getElementById('eject-screen').classList.add('hidden');
       document.getElementById('game-screen').classList.remove('hidden');
 
       const me = data.players[socket.id];
+      myRole = me.role;
       const roleElem = document.getElementById('role-display');
-      roleElem.textContent = me.role;
-      roleElem.className = `role-badge ${me.role.toLowerCase()}`;
+      roleElem.textContent = myRole;
+      roleElem.className = `role-badge ${myRole.toLowerCase()}`;
+
+      // Mostrar botón de sabotaje solo al impostor
+      if (myRole === 'IMPOSTOR') {
+        document.getElementById('sabotage-btn').classList.remove('hidden');
+      }
 
       loadTask(data.question);
     });
@@ -143,39 +153,76 @@
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
         btn.textContent = opt;
-        btn.onclick = () => sendAnswer(idx);
+        btn.onclick = () => {
+          socket.emit('submitAnswer', { questionText: currentQuestionObj.question, answerIndex: idx });
+        };
         optContainer.appendChild(btn);
-      });
-    }
-
-    function sendAnswer(idx) {
-      if (!currentQuestionObj) return;
-      socket.emit('submitAnswer', {
-        questionText: currentQuestionObj.question,
-        answerIndex: idx
       });
     }
 
     socket.on('taskResult', (data) => {
       const feedback = document.getElementById('feedback');
-      if (data.correct) {
-        feedback.style.color = '#4ade80';
-        feedback.textContent = '✅ Correct task!';
-      } else {
-        feedback.style.color = '#f87171';
-        feedback.textContent = '❌ Wrong answer!';
-      }
-
-      // Carga la nueva pregunta después de medio segundo
+      feedback.style.color = data.correct ? '#4ade80' : '#f87171';
+      feedback.textContent = data.correct ? '✅ Correct task!' : '❌ Wrong answer!';
       setTimeout(() => {
         feedback.textContent = '';
         loadTask(data.nextQuestion);
-      }, 600);
+      }, 500);
     });
 
-    socket.on('startDiscussion', () => {
+    // ACTIVACIÓN DE SABOTAJE
+    socket.on('sabotageTriggered', (data) => {
+      document.body.classList.add('dark-mode');
+      document.getElementById('game-screen').classList.add('dark-card');
+      loadTask(data.question);
+    });
+
+    // REPARACIÓN DE SABOTAJE
+    socket.on('sabotageFixed', () => {
+      document.body.classList.remove('dark-mode');
+      document.getElementById('game-screen').classList.remove('dark-card');
+      alert('⚡ Lights fixed!');
+    });
+
+    socket.on('startDiscussion', (players) => {
+      document.body.classList.remove('dark-mode');
+      document.getElementById('game-screen').classList.remove('dark-card');
       document.getElementById('game-screen').classList.add('hidden');
       document.getElementById('discussion-screen').classList.remove('hidden');
+
+      const container = document.getElementById('voting-list');
+      container.innerHTML = '';
+
+      Object.values(players).forEach(p => {
+        if (p.isAlive) {
+          const btn = document.createElement('button');
+          btn.className = 'vote-btn';
+          btn.textContent = `Vote ${p.name}`;
+          btn.onclick = () => {
+            socket.emit('castVote', p.id);
+            container.innerHTML = '<p>Vote registered! Waiting for others...</p>';
+          };
+          container.appendChild(btn);
+        }
+      });
+    });
+
+    socket.on('voteUpdate', (data) => {
+      document.getElementById('vote-status').textContent = `Votes: ${data.totalVotes} / ${data.required}`;
+    });
+
+    socket.on('ejectionResult', (data) => {
+      document.getElementById('discussion-screen').classList.add('hidden');
+      document.getElementById('eject-screen').classList.remove('hidden');
+
+      const ejectText = document.getElementById('eject-text');
+      if (data.isImpostor) {
+        ejectText.style.color = '#4ade80';
+        ejectText.textContent = `🎉 ${data.ejectedName} WAS the Impostor! CREWMATES WIN!`;
+      } else {
+        ejectText.style.color = '#f87171';
+        ejectText.textContent = `💀 ${data.ejectedName} was NOT the Impostor...`;
+      }
     });
 
     socket.on('errorMsg', (msg) => alert(msg));
