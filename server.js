@@ -8,7 +8,6 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// BANCO DE PREGUNTAS: VERBO TO BE
 let questionBank = [
   { question: "I ___ doing my tasks in Electrical.", options: ["am", "is", "are"], correct: 0 },
   { question: "She ___ not the Impostor, I saw her scan!", options: ["am", "are", "is"], correct: 2 },
@@ -23,18 +22,16 @@ let questionBank = [
 ];
 
 let players = {};
-let gameState = 'LOBBY';
+let votes = {};
 let imposterId = null;
+let isSabotaged = false;
 
 io.on('connection', (socket) => {
-  console.log(`Player connected: ${socket.id}`);
-
   socket.on('joinGame', (username) => {
     players[socket.id] = {
       id: socket.id,
       name: username,
       role: 'CREWMATE',
-      score: 0,
       isAlive: true
     };
     io.emit('updatePlayers', players);
@@ -43,7 +40,7 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     const ids = Object.keys(players);
     if (ids.length < 2) {
-      socket.emit('errorMsg', 'Need at least 2 players to start!');
+      socket.emit('errorMsg', 'Need at least 2 players!');
       return;
     }
 
@@ -53,29 +50,54 @@ io.on('connection', (socket) => {
       players[id].isAlive = true;
     });
 
-    gameState = 'TASK';
+    votes = {};
+    isSabotaged = false;
     io.emit('gameStarted', { players, question: getNextQuestion() });
   });
 
-  // RESPUESTA Y SIGUIENTE PREGUNTA
   socket.on('submitAnswer', (data) => {
     const currentQ = questionBank.find(q => q.question === data.questionText);
     const isCorrect = currentQ && currentQ.correct === data.answerIndex;
 
-    if (isCorrect && players[socket.id]) {
-      players[socket.id].score += 10;
+    // Si el juego está saboteado y la respuesta es correcta, arreglan las luces
+    if (isSabotaged && isCorrect) {
+      isSabotaged = false;
+      io.emit('sabotageFixed');
     }
 
-    // Le enviamos la confirmación y una NUEVA pregunta al jugador que respondió
     socket.emit('taskResult', { 
       correct: isCorrect, 
       nextQuestion: getNextQuestion() 
     });
   });
 
+  // EVENTO DE SABOTAJE (solo emitido por el Impostor)
+  socket.on('triggerSabotage', () => {
+    if (socket.id === imposterId) {
+      isSabotaged = true;
+      io.emit('sabotageTriggered', {
+        question: {
+          question: "🚨 SABOTAGE! Fix the lights: 'The power ___ off!'",
+          options: ["went", "go", "gone"],
+          correct: 0
+        }
+      });
+    }
+  });
+
   socket.on('callEmergency', () => {
-    gameState = 'DISCUSSION';
-    io.emit('startDiscussion');
+    votes = {};
+    io.emit('startDiscussion', players);
+  });
+
+  socket.on('castVote', (targetId) => {
+    votes[socket.id] = targetId;
+    const alivePlayers = Object.values(players).filter(p => p.isAlive);
+    if (Object.keys(votes).length >= alivePlayers.length) {
+      processEjection();
+    } else {
+      io.emit('voteUpdate', { totalVotes: Object.keys(votes).length, required: alivePlayers.length });
+    }
   });
 
   socket.on('disconnect', () => {
@@ -83,6 +105,34 @@ io.on('connection', (socket) => {
     io.emit('updatePlayers', players);
   });
 });
+
+function processEjection() {
+  const tally = {};
+  Object.values(votes).forEach(targetId => {
+    tally[targetId] = (tally[targetId] || 0) + 1;
+  });
+
+  let maxVotes = 0;
+  let ejectedId = null;
+
+  for (const [id, count] of Object.entries(tally)) {
+    if (count > maxVotes) {
+      maxVotes = count;
+      ejectedId = id;
+    }
+  }
+
+  if (ejectedId && players[ejectedId]) {
+    const ejectedPlayer = players[ejectedId];
+    ejectedPlayer.isAlive = false;
+    const isImpostor = (ejectedId === imposterId);
+
+    io.emit('ejectionResult', {
+      ejectedName: ejectedPlayer.name,
+      isImpostor: isImpostor
+    });
+  }
+}
 
 function getNextQuestion() {
   return questionBank[Math.floor(Math.random() * questionBank.length)];
