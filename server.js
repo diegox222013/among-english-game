@@ -8,68 +8,27 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// BANCO DE PREGUNTAS: VERBO TO BE (10 PREGUNTAS)
+// BANCO DE PREGUNTAS: VERBO TO BE
 let questionBank = [
-  {
-    question: "I ___ doing my tasks in Electrical.",
-    options: ["am", "is", "are"],
-    correct: 0
-  },
-  {
-    question: "She ___ not the Impostor, I saw her scan!",
-    options: ["am", "are", "is"],
-    correct: 2
-  },
-  {
-    question: "We ___ fixing the reactor together.",
-    options: ["was", "is", "are"],
-    correct: 2
-  },
-  {
-    question: "Blue ___ acting very sus in Navigation yesterday.",
-    options: ["were", "was", "are"],
-    correct: 1
-  },
-  {
-    question: "___ you in the cafeteria when the lights went out?",
-    options: ["Were", "Is", "Was"],
-    correct: 0
-  },
-  {
-    question: "They ___ all safe in the Security room.",
-    options: ["is", "am", "are"],
-    correct: 2
-  },
-  {
-    question: "It ___ a trap! Don't go to Weapons!",
-    options: ["are", "am", "is"],
-    correct: 2
-  },
-  {
-    question: "Where ___ the body reported?",
-    options: ["was", "were", "am"],
-    correct: 0
-  },
-  {
-    question: "Red and Green ___ not in the same room.",
-    options: ["is", "were", "was"],
-    correct: 1
-  },
-  {
-    question: "Who ___ the Impostor in the last round?",
-    options: ["were", "was", "are"],
-    correct: 1
-  }
+  { question: "I ___ doing my tasks in Electrical.", options: ["am", "is", "are"], correct: 0 },
+  { question: "She ___ not the Impostor, I saw her scan!", options: ["am", "are", "is"], correct: 2 },
+  { question: "We ___ fixing the reactor together.", options: ["was", "is", "are"], correct: 2 },
+  { question: "Blue ___ acting very sus in Navigation yesterday.", options: ["were", "was", "are"], correct: 1 },
+  { question: "___ you in the cafeteria when the lights went out?", options: ["Were", "Is", "Was"], correct: 0 },
+  { question: "They ___ all safe in the Security room.", options: ["is", "am", "are"], correct: 2 },
+  { question: "It ___ a trap! Don't go to Weapons!", options: ["are", "am", "is"], correct: 2 },
+  { question: "Where ___ the body reported?", options: ["was", "were", "am"], correct: 0 },
+  { question: "Red and Green ___ not in the same room.", options: ["is", "were", "was"], correct: 1 },
+  { question: "Who ___ the Impostor in the last round?", options: ["were", "was", "are"], correct: 1 }
 ];
 
 let players = {};
-let gameState = 'LOBBY'; // LOBBY, TASK, DISCUSSION, END
+let gameState = 'LOBBY';
 let imposterId = null;
 
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
 
-  // Unirse al juego
   socket.on('joinGame', (username) => {
     players[socket.id] = {
       id: socket.id,
@@ -81,7 +40,6 @@ io.on('connection', (socket) => {
     io.emit('updatePlayers', players);
   });
 
-  // Iniciar partida
   socket.on('startGame', () => {
     const ids = Object.keys(players);
     if (ids.length < 2) {
@@ -89,7 +47,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Asignar Impostor al azar
     imposterId = ids[Math.floor(Math.random() * ids.length)];
     ids.forEach(id => {
       players[id].role = (id === imposterId) ? 'IMPOSTOR' : 'CREWMATE';
@@ -100,24 +57,27 @@ io.on('connection', (socket) => {
     io.emit('gameStarted', { players, question: getNextQuestion() });
   });
 
-  // Enviar respuesta de tarea
-  socket.on('submitAnswer', (answerIndex) => {
-    // Procesar lógica de tareas
-    socket.emit('taskResult', { correct: true }); 
+  // RESPUESTA Y SIGUIENTE PREGUNTA
+  socket.on('submitAnswer', (data) => {
+    const currentQ = questionBank.find(q => q.question === data.questionText);
+    const isCorrect = currentQ && currentQ.correct === data.answerIndex;
+
+    if (isCorrect && players[socket.id]) {
+      players[socket.id].score += 10;
+    }
+
+    // Le enviamos la confirmación y una NUEVA pregunta al jugador que respondió
+    socket.emit('taskResult', { 
+      correct: isCorrect, 
+      nextQuestion: getNextQuestion() 
+    });
   });
 
-  // Iniciar reunión de emergencia
   socket.on('callEmergency', () => {
     gameState = 'DISCUSSION';
     io.emit('startDiscussion');
   });
 
-  // Enviar voto
-  socket.on('castVote', (targetId) => {
-    io.emit('chatMessage', { sender: 'SYSTEM', text: `${players[socket.id]?.name} has voted.` });
-  });
-
-  // Desconexión
   socket.on('disconnect', () => {
     delete players[socket.id];
     io.emit('updatePlayers', players);
@@ -129,7 +89,6 @@ function getNextQuestion() {
 }
 
 const PORT = process.env.PORT || 10000;
-
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
