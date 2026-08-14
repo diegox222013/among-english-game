@@ -86,19 +86,25 @@ io.on('connection', (socket) => {
         p.aimAngle = data.aimAngle || 0;
 
         let spd = p.classType === 'NINJA' ? 1.6 : 1.3;
-        if (p.slowedTimer > 0) spd = 0.5;
+        let maxWalkSpeed = p.classType === 'NINJA' ? 7 : 5; // Límite de velocidad por caminar/aire
+        
+        if (p.slowedTimer > 0) {
+            spd = 0.5;
+            maxWalkSpeed = 2;
+        }
 
-        if (data.left) p.vx -= spd;
-        if (data.right) p.vx += spd;
+        // CORRECCIÓN VELOCIDAD ABSURDA: 
+        // Solo aplica fuerza horizontal si el personaje está por debajo de su velocidad máxima natural.
+        // Si va súper rápido por el Grapple, WASD no sumará más, pero la inercia se conserva.
+        if (data.left && p.vx > -maxWalkSpeed) p.vx -= spd;
+        if (data.right && p.vx < maxWalkSpeed) p.vx += spd;
 
-        // FIX BUG SALTO: Solo salta si la tecla NO estaba ya presionada
         if (data.up) {
             if (!p.jumpHeld) {
                 if (p.onGround) {
                     p.vy = -16;
                     p.onGround = false;
                 } else if (p.grapple.active) {
-                    // Impulso extra al soltarse de la telaraña saltando
                     p.vy = -14;
                     p.grapple.active = false;
                 }
@@ -108,16 +114,13 @@ io.on('connection', (socket) => {
             p.jumpHeld = false;
         }
 
-        // GRAPPLE INPUT
         if (data.holdingRightClick && p.skill === 'grapple' && p.isAdmin && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
                 p.grapple.x = data.targetPoint.x;
                 p.grapple.y = data.targetPoint.y;
-                
                 let dx = p.grapple.x - (p.x + p.w / 2);
                 let dy = p.grapple.y - (p.y + p.h / 2);
-                // Longitud inicial de la cuerda elástica
                 p.grapple.length = Math.hypot(dx, dy) * 0.8; 
             }
         } else {
@@ -195,7 +198,7 @@ setInterval(() => {
         // Gravedad normal
         p.vy += 0.6;
 
-        // FÍSICA SPIDERMAN (Péndulo y resorte elástico)
+        // FÍSICA SPIDERMAN
         if (p.grapple.active) {
             let cx = p.x + p.w / 2;
             let cy = p.y + p.h / 2;
@@ -204,23 +207,24 @@ setInterval(() => {
             let dist = Math.hypot(dx, dy);
 
             if (dist > p.grapple.length) {
-                // Ley de Hooke (Fuerza proporcional a la elongación)
                 let diff = dist - p.grapple.length;
-                let tension = diff * 0.025; // Constante elástica del gancho
+                let tension = diff * 0.025;
                 
                 p.vx += (dx / dist) * tension;
                 p.vy += (dy / dist) * tension;
                 
-                // Fricción del aire al balancearse para que no sea incontrolable
                 p.vx *= 0.98;
                 p.vy *= 0.98;
             }
-            // Acortar cuerda gradualmente para atraer al jugador hacia el ancla
             p.grapple.length = Math.max(30, p.grapple.length - 2.5);
         }
 
-        // Fricción horizontal (Suelo vs Aire)
-        p.vx *= p.onGround ? 0.80 : 0.96; 
+        // LÍMITE DE CAÍDA LIBRE (Terminal Velocity) para evitar atravesar suelos
+        if (p.vy > 25) p.vy = 25;
+
+        // CORRECCIÓN FRICCIÓN EN EL AIRE
+        // Antes era 0.96, lo que te dejaba patinar eternamente. 0.90 da mejor control aéreo.
+        p.vx *= p.onGround ? 0.80 : 0.90; 
 
         p.x += p.vx;
         PLATFORMS.forEach(plat => {
