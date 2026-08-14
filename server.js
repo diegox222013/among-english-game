@@ -10,12 +10,9 @@ const WORLD_HEIGHT = 1600;
 const ADMIN_KEY = "admin123";
 
 const PLATFORMS = [
-    // SUELO CORREGIDO: Cubre exactamente los 5760px sin huecos para que el TP lateral sea perfecto
     { x: 0, y: 1500, w: 2000, h: 100, type: 'grass' },
-    { x: 2000, y: 1540, w: 2000, h: 60, type: 'dirt' },
-    { x: 4000, y: 1480, w: 1760, h: 120, type: 'grass' },
-
-    // Bosque y Ruinas (Optimizados para parkour)
+    { x: 2000, y: 1500, w: 2000, h: 100, type: 'dirt' },
+    { x: 4000, y: 1500, w: 1760, h: 100, type: 'grass' },
     { x: 400, y: 1300, w: 250, h: 25, type: 'wood' },
     { x: 300, y: 1100, w: 200, h: 25, type: 'wood' },
     { x: 550, y: 920, w: 300, h: 30, type: 'wood' },
@@ -69,6 +66,15 @@ io.on('connection', (socket) => {
         };
 
         socket.emit('registered', { id: socket.id, platforms: PLATFORMS, worldW: WORLD_WIDTH, worldH: WORLD_HEIGHT, isAdmin: isAdmin });
+        io.emit('chatMessage', { sender: "SISTEMA", text: `👉 ${username} ha entrado a la arena.`, type: 'system' });
+    });
+
+    // --- NUEVO: SISTEMA DE CHAT ---
+    socket.on('sendChat', (msg) => {
+        const p = PLAYERS[socket.id];
+        if (p && msg.trim().length > 0) {
+            io.emit('chatMessage', { sender: p.name, text: msg.trim(), isAdmin: p.isAdmin, type: 'user' });
+        }
     });
 
     socket.on('playerInput', (data) => {
@@ -80,17 +86,14 @@ io.on('connection', (socket) => {
         let spd = p.classType === 'NINJA' ? 1.6 : 1.3;
         if (p.slowedTimer > 0) spd = 0.5;
 
-        // Buff: Movimiento más ágil
         if (data.left) p.vx -= spd;
         if (data.right) p.vx += spd;
 
-        // Buff de Salto
         if (data.up && p.onGround) {
             p.vy = -16;
             p.onGround = false;
         }
 
-        // BUFF DE GRAPPLE: Más fuerza, más inercia
         if (data.holdingRightClick && p.skill === 'grapple' && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
@@ -101,9 +104,10 @@ io.on('connection', (socket) => {
             let dy = p.grapple.y - (p.y + p.h / 2);
             let dist = Math.hypot(dx, dy);
 
-            // Jala mucho más fuerte
-            p.vx += (dx / dist) * 1.8;
-            p.vy += (dy / dist) * 1.8;
+            if (dist > 0) {
+                p.vx += (dx / dist) * 1.8;
+                p.vy += (dy / dist) * 1.8;
+            }
         } else {
             p.grapple.active = false;
         }
@@ -136,9 +140,10 @@ io.on('connection', (socket) => {
         let startX = p.x + p.w / 2;
         let startY = p.y + p.h / 3;
 
-        // Buff: Proyectiles más rápidos
         if (p.weapon === 'shotgun') {
-            for (let i = -2; i <= 2; i++) BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle + i*0.08)*22, vy: Math.sin(angle + i*0.08)*22, damage: 14, life: 30 });
+            for (let i = -2; i <= 2; i++) {
+                BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle + i*0.08)*22, vy: Math.sin(angle + i*0.08)*22, damage: 14, life: 30 });
+            }
         } else if (p.weapon === 'sniper') {
             BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle)*38, vy: Math.sin(angle)*38, damage: 65, life: 100 });
         } else {
@@ -146,7 +151,12 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => delete PLAYERS[socket.id]);
+    socket.on('disconnect', () => {
+        if(PLAYERS[socket.id]) {
+            io.emit('chatMessage', { sender: "SISTEMA", text: `👋 ${PLAYERS[socket.id].name} se ha desconectado.`, type: 'system' });
+        }
+        delete PLAYERS[socket.id];
+    });
 });
 
 setInterval(() => {
@@ -161,7 +171,7 @@ setInterval(() => {
     for (let i = TORNADOS.length - 1; i >= 0; i--) {
         TORNADOS[i].life--;
         Object.values(PLAYERS).forEach(p => {
-            if (checkCollision(p, TORNADOS[i])) p.vy = -22; // Salto enorme buffeado
+            if (checkCollision(p, TORNADOS[i])) p.vy = -22;
         });
         if (TORNADOS[i].life <= 0) TORNADOS.splice(i, 1);
     }
@@ -172,10 +182,7 @@ setInterval(() => {
         if (p.abilityCD > 0) p.abilityCD--;
         if (p.slowedTimer > 0) p.slowedTimer--;
 
-        // Buff Control Aéreo: Fricción menor en el aire para mantener inercia
         p.vx *= p.onGround ? 0.80 : 0.96; 
-        
-        // Buff Gravedad: Si usas grapple, caes lentísimo
         p.vy += p.grapple.active ? 0.1 : 0.6;
 
         p.x += p.vx;
@@ -211,11 +218,9 @@ setInterval(() => {
             }
         });
 
-        // 1. CORRECCIÓN PAC-MAN LATERAL (Suave)
         if (p.x < -p.w) p.x = WORLD_WIDTH - 1;
         if (p.x > WORLD_WIDTH) p.x = -p.w + 1;
 
-        // 2. CORRECCIÓN DE VACÍO (Muerte por caída)
         if (p.y > WORLD_HEIGHT + 200) {
             p.hp = 0;
             setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; p.vx = 0; p.vy = 0; }, 2000);
@@ -238,6 +243,7 @@ setInterval(() => {
                 if (p.hp <= 0) {
                     p.hp = 0;
                     if (PLAYERS[b.ownerId]) PLAYERS[b.ownerId].score++;
+                    io.emit('chatMessage', { sender: "SISTEMA", text: `💀 ${p.name} fue eliminado.`, type: 'system' });
                     setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; p.vx = 0; p.vy = 0; }, 2000);
                 }
             }
@@ -249,4 +255,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Servidor Buffeado activo en puerto ${PORT}`));
+http.listen(PORT, () => console.log(`Servidor iniciado en puerto ${PORT}`));
