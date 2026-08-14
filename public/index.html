@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NATURE ARENA - CROSSPLATFORM</title>
+    <title>NATURE ARENA - ENGLISH CLASS EDITION</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
@@ -95,7 +95,7 @@
     <div id="config-screen" class="overlay-screen">
         <div class="card">
             <h2 style="color: #34d399; margin-bottom: 15px; text-shadow: 0 0 10px #34d399;">CONFIGURA TU GUERRERO</h2>
-            <div class="form-group"><label>Nombre:</label><input type="text" id="username" placeholder="Tu Nombre" maxlength="12"></div>
+            <div class="form-group"><label>Nombre (Prueba "profe"):</label><input type="text" id="username" placeholder="Tu Nombre" maxlength="12"></div>
             <div class="form-group"><label>🔑 Clave Admin:</label><input type="password" id="adminKey" placeholder="Opcional"></div>
             <div class="form-group">
                 <label>Arma:</label>
@@ -121,12 +121,12 @@
 
     <div id="tutorial-screen" class="overlay-screen">
         <div class="card card-tutorial">
-            <h2 style="color: #818cf8; margin-bottom: 12px; text-align: center;">📖 CONTROLES Y FÍSICAS</h2>
+            <h2 style="color: #818cf8; margin-bottom: 12px; text-align: center;">📖 CONTROLES Y SECRETOS</h2>
             <ul style="color: #e2e8f0; line-height: 1.6; margin-left: 20px; font-size: 14px;">
+                <li><b>🎓 TRUCO PROFE:</b> Ponte el nombre <code>profe</code> para conseguir la Habilidad y Aura de Inglés con letras flotantes ABC.</li>
                 <li><b>💻 En PC:</b> <kbd>A</kbd>/<kbd>D</kbd> Moverse. <kbd>W</kbd>/<kbd>Espacio</kbd> Saltar.</li>
                 <li><b>🖱️ Ratón:</b> Clic Izquierdo = Disparar. Clic Derecho = Habilidad.</li>
-                <li><b>🪝 Grapple (Admin):</b> Pulsa Clic Derecho para engancharte y catapúltate con el aura activada.</li>
-                <li><b>📱 Móvil:</b> Controles táctiles en pantalla soportan multitoque.</li>
+                <li><b>🪝 Grapple (Admin):</b> Pulsa Clic Derecho para engancharte y catapúltate con velocidad súper rápida.</li>
             </ul>
             <button class="btn-close" onclick="showScreen('main')">ENTENDIDO</button>
         </div>
@@ -168,7 +168,7 @@
         let currentCamX = 0; let currentCamY = 0;
         let isPlaying = false;
         let isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-        let colorHue = 0; // Para el efecto RGB del aura
+        let colorHue = 0;
 
         function showScreen(screen) {
             document.getElementById('main-lobby').style.display = screen === 'main' ? 'flex' : 'none';
@@ -272,7 +272,7 @@
         function draw() {
             if (!isPlaying) return requestAnimationFrame(draw);
 
-            colorHue = (colorHue + 2) % 360; // Tono cambiente para el aura RGB
+            colorHue = (colorHue + 2) % 360;
             let auraColor = `hsl(${colorHue}, 100%, 60%)`;
 
             let me = gameState.players[myId];
@@ -293,14 +293,21 @@
             ctx.translate(-currentCamX, -currentCamY);
             drawGrid(ctx, currentCamX, currentCamY);
 
-            // Renderizar Partículas de Aura Admin
+            // RENDERIZAR AURA (Partículas Neón o Letras ABC de Inglés)
             (gameState.auraParticles || []).forEach(part => {
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = auraColor;
-                ctx.fillStyle = auraColor;
-                ctx.beginPath();
-                ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.shadowBlur = 12;
+                if (part.type === 'english') {
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.fillStyle = '#60a5fa';
+                    ctx.font = `bold ${Math.floor(part.size * 2.5)}px 'Segoe UI'`;
+                    ctx.fillText(part.text, part.x, part.y);
+                } else {
+                    ctx.shadowColor = auraColor;
+                    ctx.fillStyle = auraColor;
+                    ctx.beginPath();
+                    ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 ctx.shadowBlur = 0;
             });
 
@@ -318,18 +325,18 @@
                 ctx.shadowBlur = 0;
             });
 
-            // Habilidades
+            // Habilidades de Terreno
             (gameState.vines || []).forEach(v => { ctx.shadowBlur=20; ctx.shadowColor='#10b981'; ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'; ctx.fillRect(v.x, v.y, v.w, v.h); ctx.shadowBlur=0; });
             (gameState.tornados || []).forEach(t => { ctx.shadowBlur=20; ctx.shadowColor='#38bdf8'; ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.shadowBlur=0; });
 
             // Jugadores
             Object.values(gameState.players).forEach(p => {
                 if (p.hp > 0) {
-                    // Grapple Visual
+                    // Cuerda de Telaraña
                     if (p.grapple && p.grapple.active && p.isAdmin) {
-                        ctx.strokeStyle = auraColor; 
+                        ctx.strokeStyle = p.isProfe ? '#38bdf8' : auraColor; 
                         ctx.lineWidth = 3;
-                        ctx.shadowColor = auraColor;
+                        ctx.shadowColor = p.isProfe ? '#38bdf8' : auraColor;
                         ctx.shadowBlur = 15;
                         ctx.beginPath(); 
                         ctx.moveTo(p.x + p.w/2, p.y + 15); 
@@ -339,11 +346,19 @@
                     }
 
                     let isEnemy = (p.id !== myId);
-                    let baseColor = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
+                    let baseColor = p.isProfe ? '#38bdf8' : (p.classType === 'PROFE / NINJA' ? '#0ea5e9' : '#10b981');
                     if (isEnemy) baseColor = '#ef4444';
 
-                    // DIBUJAR AURA ADMIN SI ES ADMIN
-                    if (p.isAdmin) {
+                    // DIBUJAR AURA
+                    if (p.isProfe) {
+                        ctx.shadowBlur = 30;
+                        ctx.shadowColor = '#38bdf8';
+                        ctx.strokeStyle = '#60a5fa';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.roundRect(p.x - 5, p.y - 5, p.w + 10, p.h + 10, 12);
+                        ctx.stroke();
+                    } else if (p.isAdmin) {
                         ctx.shadowBlur = 30;
                         ctx.shadowColor = auraColor;
                         ctx.strokeStyle = auraColor;
@@ -361,7 +376,7 @@
                     ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
                     ctx.shadowBlur = 0;
 
-                    // Ojos (Rectángulos Redondeados)
+                    // Ojos Redondeados
                     let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
                     let eyeW = 7, eyeH = 14;
                     let eyeY = p.y + 10;
@@ -375,28 +390,38 @@
                     ctx.fill();
                     ctx.shadowBlur = 0;
 
-                    // Nombre
-                    ctx.fillStyle = p.isAdmin ? '#fbbf24' : '#fff';
+                    // Nombre y Título de Profe
+                    ctx.fillStyle = p.isProfe ? '#60a5fa' : (p.isAdmin ? '#fbbf24' : '#fff');
                     ctx.font = "bold 13px 'Segoe UI'"; ctx.textAlign = "center";
                     ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-                    ctx.fillText(p.name + (p.isAdmin ? ' 👑' : ''), p.x + p.w/2, p.y - 12);
+                    ctx.fillText(p.name + (p.isProfe ? ' 🎓 [ENGLISH PROFE]' : (p.isAdmin ? ' 👑' : '')), p.x + p.w/2, p.y - 12);
                     ctx.shadowBlur = 0;
                     ctx.textAlign = "left";
                 }
             });
 
-            // Proyectiles
+            // Disparos y Proyectiles de Inglés
             gameState.bullets.forEach(b => {
-                let color = b.damage > 30 ? '#ef4444' : '#38bdf8';
-                ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
-                ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+                if (b.isBook) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = '#60a5fa';
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.fillRect(b.x - 12, b.y - 12, 24, 24);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = "bold 12px 'Segoe UI'";
+                    ctx.fillText(b.text, b.x - 10, b.y + 4);
+                } else {
+                    let color = b.damage > 30 ? '#ef4444' : '#38bdf8';
+                    ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+                    ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+                }
                 ctx.shadowBlur = 0;
             });
 
             ctx.restore();
 
             if (me) {
-                document.getElementById('player-info').innerHTML = `<b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} | Bajas: <b style="color:#fcd34d">${me.score}</b>`;
+                document.getElementById('player-info').innerHTML = `<b style="color:#34d399">${me.name}</b> ${me.isProfe ? '🎓' : (me.isAdmin ? '👑' : '')} | Bajas: <b style="color:#fcd34d">${me.score}</b>`;
                 document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
             }
 
