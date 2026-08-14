@@ -34,6 +34,7 @@ const PLAYERS = {};
 const BULLETS = [];
 const VINES = [];
 const TORNADOS = [];
+const AURA_PARTICLES = [];
 
 function checkCollision(r1, r2) {
     return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
@@ -86,16 +87,13 @@ io.on('connection', (socket) => {
         p.aimAngle = data.aimAngle || 0;
 
         let spd = p.classType === 'NINJA' ? 1.6 : 1.3;
-        let maxWalkSpeed = p.classType === 'NINJA' ? 7 : 5; // Límite de velocidad por caminar/aire
+        let maxWalkSpeed = p.classType === 'NINJA' ? 8 : 6;
         
         if (p.slowedTimer > 0) {
             spd = 0.5;
             maxWalkSpeed = 2;
         }
 
-        // CORRECCIÓN VELOCIDAD ABSURDA: 
-        // Solo aplica fuerza horizontal si el personaje está por debajo de su velocidad máxima natural.
-        // Si va súper rápido por el Grapple, WASD no sumará más, pero la inercia se conserva.
         if (data.left && p.vx > -maxWalkSpeed) p.vx -= spd;
         if (data.right && p.vx < maxWalkSpeed) p.vx += spd;
 
@@ -105,7 +103,7 @@ io.on('connection', (socket) => {
                     p.vy = -16;
                     p.onGround = false;
                 } else if (p.grapple.active) {
-                    p.vy = -14;
+                    p.vy = -16; // Impulso extra al saltar desde la telaraña
                     p.grapple.active = false;
                 }
             }
@@ -114,6 +112,7 @@ io.on('connection', (socket) => {
             p.jumpHeld = false;
         }
 
+        // GRAPPLE HIPER RÁPIDO Y DINÁMICO
         if (data.holdingRightClick && p.skill === 'grapple' && p.isAdmin && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
@@ -121,7 +120,15 @@ io.on('connection', (socket) => {
                 p.grapple.y = data.targetPoint.y;
                 let dx = p.grapple.x - (p.x + p.w / 2);
                 let dy = p.grapple.y - (p.y + p.h / 2);
-                p.grapple.length = Math.hypot(dx, dy) * 0.8; 
+                let dist = Math.hypot(dx, dy);
+
+                p.grapple.length = dist * 0.6; // Cuerda tensa desde el inicio
+                
+                // Latigazo de aceleración inicial
+                if (dist > 0) {
+                    p.vx += (dx / dist) * 14;
+                    p.vy += (dy / dist) * 14;
+                }
             }
         } else {
             p.grapple.active = false;
@@ -173,6 +180,30 @@ io.on('connection', (socket) => {
 });
 
 setInterval(() => {
+    // Generar partículas para las auras de los Admins
+    Object.values(PLAYERS).forEach(p => {
+        if (p.hp > 0 && p.isAdmin) {
+            AURA_PARTICLES.push({
+                x: p.x + p.w / 2 + (Math.random() * 20 - 10),
+                y: p.y + p.h / 2 + (Math.random() * 30 - 15),
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: -Math.random() * 2,
+                size: Math.random() * 5 + 3,
+                life: 25
+            });
+        }
+    });
+
+    // Actualizar partículas
+    for (let i = AURA_PARTICLES.length - 1; i >= 0; i--) {
+        let part = AURA_PARTICLES[i];
+        part.x += part.vx;
+        part.y += part.vy;
+        part.life--;
+        part.size *= 0.93;
+        if (part.life <= 0) AURA_PARTICLES.splice(i, 1);
+    }
+
     for (let i = VINES.length - 1; i >= 0; i--) {
         VINES[i].life--;
         Object.values(PLAYERS).forEach(p => {
@@ -195,10 +226,9 @@ setInterval(() => {
         if (p.abilityCD > 0) p.abilityCD--;
         if (p.slowedTimer > 0) p.slowedTimer--;
 
-        // Gravedad normal
-        p.vy += 0.6;
+        p.vy += 0.6; // Gravedad
 
-        // FÍSICA SPIDERMAN
+        // TENSION GRAPPLE RÁPIDA (Ley de Hooke Agresiva)
         if (p.grapple.active) {
             let cx = p.x + p.w / 2;
             let cy = p.y + p.h / 2;
@@ -206,25 +236,24 @@ setInterval(() => {
             let dy = p.grapple.y - cy;
             let dist = Math.hypot(dx, dy);
 
-            if (dist > p.grapple.length) {
-                let diff = dist - p.grapple.length;
-                let tension = diff * 0.025;
+            if (dist > 0) {
+                if (dist > p.grapple.length) {
+                    let diff = dist - p.grapple.length;
+                    let tension = diff * 0.085; // Fuerza de atracción ultra rápida
+                    
+                    p.vx += (dx / dist) * tension;
+                    p.vy += (dy / dist) * tension;
+                }
+
+                p.grapple.length = Math.max(20, p.grapple.length - 8.0); // Encoge la cuerda 8px por frame
                 
-                p.vx += (dx / dist) * tension;
-                p.vy += (dy / dist) * tension;
-                
-                p.vx *= 0.98;
-                p.vy *= 0.98;
+                p.vx *= 0.99;
+                p.vy *= 0.99;
             }
-            p.grapple.length = Math.max(30, p.grapple.length - 2.5);
         }
 
-        // LÍMITE DE CAÍDA LIBRE (Terminal Velocity) para evitar atravesar suelos
-        if (p.vy > 25) p.vy = 25;
-
-        // CORRECCIÓN FRICCIÓN EN EL AIRE
-        // Antes era 0.96, lo que te dejaba patinar eternamente. 0.90 da mejor control aéreo.
-        p.vx *= p.onGround ? 0.80 : 0.90; 
+        if (p.vy > 25) p.vy = 25; // Límite velocidad terminal
+        p.vx *= p.onGround ? 0.80 : 0.92; // Control aéreo refinado
 
         p.x += p.vx;
         PLATFORMS.forEach(plat => {
@@ -292,8 +321,8 @@ setInterval(() => {
         if (b.life <= 0) BULLETS.splice(i, 1);
     });
 
-    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS, vines: VINES, tornados: TORNADOS });
+    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS, vines: VINES, tornados: TORNADOS, auraParticles: AURA_PARTICLES });
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Servidor iniciado en puerto ${PORT}`));
+http.listen(PORT, () => console.log(`Servidor en línea en puerto ${PORT}`));
