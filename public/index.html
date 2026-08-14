@@ -2,33 +2,36 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>NATURE ARENA - ADMIN & SKILLS</title>
+    <title>NATURE ARENA - BUFFED VERSION</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #050b14; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
         #lobby-screen {
             position: absolute; inset: 0;
-            background: linear-gradient(135deg, #09131d 0%, #052e16 100%);
+            background: radial-gradient(circle at center, #064e3b 0%, #020617 100%);
             display: flex; align-items: center; justify-content: center; z-index: 10;
         }
         .lobby-card {
-            background: rgba(15, 23, 42, 0.95); border: 2px solid #22c55e;
+            background: rgba(15, 23, 42, 0.9); border: 2px solid #34d399;
             padding: 25px; border-radius: 16px; width: 480px; text-align: center;
+            box-shadow: 0 0 40px rgba(52, 211, 153, 0.3);
         }
         .form-group { margin-bottom: 12px; text-align: left; }
-        label { font-size: 12px; color: #86efac; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        label { font-size: 12px; color: #a7f3d0; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
         input, select, button { padding: 10px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; }
-        input, select { background: #1e293b; color: #fff; border: 1px solid #334155; }
-        button { background: #22c55e; color: #052e16; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        input, select { background: #1e293b; color: #fff; border: 1px solid #475569; outline: none; }
+        input:focus, select:focus { border-color: #34d399; }
+        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+        button:hover { background: #10b981; transform: scale(1.02); }
         
         #hud {
-            position: absolute; top: 15px; left: 15px; pointer-events: none;
-            background: rgba(15, 23, 42, 0.9); border: 1px solid #22c55e;
-            padding: 12px; border-radius: 10px; font-size: 13px;
+            position: absolute; top: 20px; left: 20px; pointer-events: none;
+            background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399;
+            padding: 15px; border-radius: 12px; font-size: 14px; text-shadow: 1px 1px 2px #000;
         }
-        .hp-bar { background: #1e293b; height: 12px; width: 200px; border-radius: 6px; margin-top: 4px; overflow: hidden; }
-        .hp-fill { background: #22c55e; height: 100%; }
+        .hp-bar { background: #0f172a; height: 16px; width: 220px; border-radius: 8px; margin-top: 8px; overflow: hidden; border: 1px solid #334155; }
+        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.15s ease-out; }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
@@ -36,44 +39,44 @@
 
 <div id="lobby-screen">
     <div class="lobby-card">
-        <h1 style="color: #4ade80;">🌲 NATURE ARENA 🌿</h1>
-        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 15px;">Selecciona tus Habilidades de Combate</p>
+        <h1 style="color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.5);">🌲 NATURE ARENA 🌿</h1>
+        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 15px;">Movimiento Ágil + Grapple Real</p>
 
         <div class="form-group">
-            <label>Nombre del Operativo:</label>
-            <input type="text" id="username" placeholder="Tu Nombre">
+            <label>Nombre de Operativo:</label>
+            <input type="text" id="username" placeholder="Tu Nombre" maxlength="12">
         </div>
 
         <div class="form-group">
-            <label>🔑 Clave de Admin (Acceso Ninja Exclusivo):</label>
-            <input type="password" id="adminKey" placeholder="Solo para el Admin">
+            <label>🔑 Clave Admin (Opcional):</label>
+            <input type="password" id="adminKey" placeholder="Solo Administrador">
         </div>
 
         <div class="form-group">
-            <label>Arma Principal:</label>
+            <label>Arma Primaria:</label>
             <select id="weapon-select">
-                <option value="rifle">Rifle de Asalto</option>
-                <option value="shotgun">Escopeta Pesada</option>
-                <option value="sniper">Ballesta Francotiradora</option>
+                <option value="rifle">Rifle (Rápido y Constante)</option>
+                <option value="shotgun">Escopeta (Destrozo de Cerca)</option>
+                <option value="sniper">Ballesta Sniper (Larga Distancia)</option>
             </select>
         </div>
 
         <div class="form-group">
             <label>Habilidad Especial:</label>
             <select id="skill-select">
-                <option value="grapple">🪝 Gancho Grapple (Sostener Clic Der)</option>
-                <option value="vines">🌿 Enredadera Espinosa (Trampa)</option>
-                <option value="tornado">🍃 Tornado Foliar (Super Viento)</option>
-                <option value="slam">🪨 Pisotón Sísmico (Caída Explosiva)</option>
+                <option value="grapple">🪝 Grapple Spiderman (Sostener Clic Der)</option>
+                <option value="vines">🌿 Trampa de Enredaderas</option>
+                <option value="tornado">🍃 Salto de Tornado</option>
+                <option value="slam">🪨 Pisotón Destructor</option>
             </select>
         </div>
 
-        <button onclick="startGame()">¡DESPLEGAR AL JUEGO!</button>
+        <button onclick="startGame()">DESPLEGAR</button>
     </div>
 </div>
 
 <div id="hud">
-    <div id="player-info">Esperando...</div>
+    <div id="player-info">Sincronizando satélite...</div>
     <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
 </div>
 
@@ -93,9 +96,13 @@
 
     const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
     let mouse = { x: 0, y: 0 };
+    
+    // Variables para Cámara Suave
+    let currentCamX = 0;
+    let currentCamY = 0;
 
     function startGame() {
-        const name = document.getElementById('username').value;
+        const name = document.getElementById('username').value || "Jugador";
         const adminKey = document.getElementById('adminKey').value;
         const weapon = document.getElementById('weapon-select').value;
         const skill = document.getElementById('skill-select').value;
@@ -112,15 +119,12 @@
         if (e.code === 'KeyD') inputs.right = true;
         if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
     });
-
     window.addEventListener('keyup', e => {
         if (e.code === 'KeyA') inputs.left = false;
         if (e.code === 'KeyD') inputs.right = false;
         if (e.code === 'KeyW' || e.code === 'Space') inputs.up = false;
     });
-
     window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-
     window.addEventListener('mousedown', e => {
         if (e.button === 0) socket.emit('shoot');
         if (e.button === 2) {
@@ -128,86 +132,102 @@
             socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
         }
     });
-
     window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     setInterval(() => {
         let me = gameState.players[myId];
         if (me) {
-            let camX = me.x - canvas.width / 2;
-            let camY = me.y - canvas.height / 2;
-            inputs.aimAngle = Math.atan2((mouse.y + camY) - (me.y + me.h/3), (mouse.x + camX) - (me.x + me.w/2));
-            inputs.targetPoint = { x: mouse.x + camX, y: mouse.y + camY };
+            inputs.aimAngle = Math.atan2((mouse.y + currentCamY) - (me.y + me.h/3), (mouse.x + currentCamX) - (me.x + me.w/2));
+            inputs.targetPoint = { x: mouse.x + currentCamX, y: mouse.y + currentCamY };
         }
         socket.emit('playerInput', inputs);
     }, 1000 / 60);
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         let me = gameState.players[myId];
-        let camX = me ? me.x - canvas.width / 2 : 0;
-        let camY = me ? me.y - canvas.height / 2 : 0;
+        if (me) {
+            // Interpolación de cámara para movimiento fluido (Lerp)
+            let targetCamX = me.x - canvas.width / 2;
+            let targetCamY = me.y - canvas.height / 2;
+            currentCamX += (targetCamX - currentCamX) * 0.1; 
+            currentCamY += (targetCamY - currentCamY) * 0.1;
+        }
 
         ctx.save();
-        ctx.translate(-camX, -camY);
+        ctx.translate(-currentCamX, -currentCamY);
+
+        // Fondo de cielo nocturno fijo con la cámara (Parallax falso)
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(currentCamX, currentCamY, canvas.width, canvas.height);
 
         // Mapa
         platforms.forEach(plat => {
-            ctx.fillStyle = plat.type === 'grass' ? '#15803d' : '#334155';
-            ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            if (plat.type === 'grass') {
+                ctx.fillStyle = '#065f46'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.fillStyle = '#10b981'; ctx.fillRect(plat.x, plat.y, plat.w, 8); // Pasto superior
+            } else if (plat.type === 'wood' || plat.type === 'leaves') {
+                ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#78350f';
+                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            } else {
+                ctx.fillStyle = '#334155'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            }
         });
 
-        // 1. Dibujar Enredaderas
+        // Habilidades Ambientales
         (gameState.vines || []).forEach(v => {
-            ctx.fillStyle = 'rgba(34, 197, 94, 0.7)';
-            ctx.fillRect(v.x, v.y, v.w, v.h);
-            ctx.strokeStyle = '#15803d';
-            ctx.strokeRect(v.x, v.y, v.w, v.h);
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.6)'; ctx.fillRect(v.x, v.y, v.w, v.h);
         });
-
-        // 2. Dibujar Tornados de Viento
         (gameState.tornados || []).forEach(t => {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
-            ctx.fillRect(t.x, t.y, t.w, t.h);
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.2)'; ctx.fillRect(t.x, t.y, t.w, t.h);
         });
 
-        // Jugadores y Grapple
+        // Jugadores
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0) {
+                // Render de la Cuerda (Físicas Vistas)
                 if (p.grapple && p.grapple.active) {
-                    ctx.strokeStyle = '#f59e0b';
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(p.x + p.w/2, p.y + 10);
                     ctx.lineTo(p.grapple.x, p.grapple.y);
                     ctx.stroke();
+                    
+                    // Ancla roja donde choca
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath(); ctx.arc(p.grapple.x, p.grapple.y, 4, 0, Math.PI*2); ctx.fill();
                 }
 
-                ctx.fillStyle = p.classType === 'NINJA' ? '#0ea5e9' : '#16a34a';
+                // Cuerpo
+                ctx.fillStyle = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
                 ctx.fillRect(p.x, p.y, p.w, p.h);
 
-                // Corona de Admin para Ti
-                if (p.isAdmin) {
-                    ctx.fillStyle = '#facc15';
-                    ctx.fillText('👑 ADMIN', p.x + p.w/2, p.y - 25);
-                }
-
+                // Ojos
+                let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
                 ctx.fillStyle = '#fff';
-                ctx.fillText(p.name, p.x + p.w/2, p.y - 10);
+                ctx.fillRect(p.x + (dir > 0 ? 20 : 4), p.y + 8, 8, 4);
+
+                if (p.isAdmin) {
+                    ctx.fillStyle = '#fbbf24'; ctx.fillText('👑 ADMIN', p.x + p.w/2 - 20, p.y - 25);
+                }
+                ctx.fillStyle = '#fff'; ctx.fillText(p.name, p.x + p.w/2 - 20, p.y - 10);
             }
         });
 
-        // Balas
+        // Balas mejoradas
         gameState.bullets.forEach(b => {
-            ctx.fillStyle = '#38bdf8';
-            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = b.damage > 30 ? '#ef4444' : (b.damage < 15 ? '#f59e0b' : '#38bdf8');
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.damage > 30 ? 6 : 4, 0, Math.PI*2); ctx.fill();
         });
 
         ctx.restore();
 
         if (me) {
             document.getElementById('player-info').innerHTML = 
-                `Rol: <b>${me.classType}</b> ${me.isAdmin ? '👑' : ''} | Kills: ${me.score}`;
+                `Soldado: <b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} <br> Bajas Confirmadas: <b>${me.score}</b>`;
             document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
         }
 
