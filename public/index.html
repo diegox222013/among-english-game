@@ -1,226 +1,672 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WAR OF WORDS - DIEGO "THE CREATOR"</title>
+    <title>WAR OF WORDS - MAXIMUM OVERDRIVE ENGINE</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #020617; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
-
-        #login-screen, #lobby-screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle, #0f172a 0%, #000 100%); z-index: 50; }
-        #lobby-screen { display: none; background: url('https://www.transparenttextures.com/patterns/cubes.png'), linear-gradient(135deg, #0f172a, #020617); }
-
-        .box { background: rgba(15, 23, 42, 0.85); border: 2px solid #00f3ff; padding: 40px; border-radius: 15px; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0, 243, 255, 0.4); backdrop-filter: blur(15px); }
-        h1 { font-family: 'Orbitron', sans-serif; color: #00f3ff; font-size: 36px; text-shadow: 0 0 15px #00f3ff; }
-
-        input, button { width: 100%; padding: 15px; margin-top: 15px; border-radius: 8px; border: none; font-family: 'Orbitron', sans-serif; font-size: 16px; }
-        input { background: rgba(30, 41, 59, 0.8); color: #fff; border: 1px solid #475569; text-align: center; }
-        button.btn-primary { background: linear-gradient(90deg, #0ea5e9, #00f3ff); color: #020617; font-weight: 900; cursor: pointer; }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@700&family=Space+Mono:wght@400;700&display=swap');
         
-        .lobby-container { display: flex; gap: 30px; width: 90%; max-width: 1200px; height: 80vh; }
-        .panel { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; flex: 1; }
+        /* CSS RESET Y VARIABLES GLOBALES */
+        :root { --neon-cyan: #00f3ff; --neon-pink: #f0f; --neon-blue: #1e3a8a; --neon-gold: #fbbf24; --dark-bg: #020617; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: var(--dark-bg); color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; width: 100vw; height: 100vh; }
 
-        .class-card { background: #1e293b; border: 2px solid transparent; border-radius: 10px; padding: 15px; cursor: pointer; margin-bottom: 10px; text-align: center; }
-        .class-card.creator { border-color: #00f3ff; box-shadow: 0 0 20px rgba(0, 243, 255, 0.5); }
+        /* UTILIDADES UI */
+        .glass-panel { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .btn { width: 100%; padding: 15px; margin-top: 10px; border-radius: 5px; border: none; font-family: 'Orbitron'; font-size: 16px; cursor: pointer; text-transform: uppercase; transition: all 0.2s ease; letter-spacing: 2px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,243,255,0.4); }
+        .btn-cyan { background: linear-gradient(45deg, #0ea5e9, var(--neon-cyan)); color: #000; font-weight: 900; }
+        .btn-blue { background: linear-gradient(45deg, #1e3a8a, #3b82f6); color: #fff; font-weight: 900; }
+        .btn-red { background: linear-gradient(45deg, #991b1b, #ef4444); color: #fff; font-weight: 900; }
+        input, select { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; background: rgba(0,0,0,0.5); color: var(--neon-cyan); border: 1px solid #334155; font-family: 'Space Mono'; outline: none; }
+        input:focus { border-color: var(--neon-cyan); }
 
-        /* OVERLAY ULTI ERROR */
-        #ult-overlay { display: none; position: absolute; inset: 0; background: rgba(0, 243, 255, 0.1); z-index: 80; pointer-events: none; justify-content: center; align-items: center; font-family: 'Orbitron'; font-size: 60px; color: #00f3ff; text-shadow: 0 0 30px #a855f7; }
+        /* PANTALLAS DE MENÚ */
+        #ui-layer { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 50; pointer-events: none; }
+        .screen { display: none; pointer-events: auto; flex-direction: column; align-items: center; }
+        .screen.active { display: flex; }
+        
+        #login-box { width: 400px; padding: 40px; text-align: center; }
+        #login-box h1 { font-family: 'Orbitron'; font-size: 42px; margin-bottom: 10px; color: #fff; text-shadow: 0 0 10px var(--neon-cyan); }
+        
+        #lobby-box { width: 800px; padding: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .lobby-section { padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #334155; }
+        .lobby-section h3 { margin-bottom: 15px; font-family: 'Orbitron'; color: var(--neon-gold); border-bottom: 1px solid #334; padding-bottom: 5px; }
 
-        #game-ui { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-        #hud-player { position: absolute; bottom: 30px; left: 30px; background: rgba(2, 6, 23, 0.85); border-left: 5px solid #00f3ff; padding: 20px; border-radius: 10px; }
-        .bar-container { width: 250px; height: 18px; background: #0f172a; border-radius: 9px; margin-top: 10px; border: 2px solid #334155; overflow: hidden; position: relative; }
-        .fill { height: 100%; }
+        /* HUD IN-GAME */
+        #hud-container { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+        
+        /* Top HUD: Timer & Score */
+        #hud-top { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.7); padding: 10px 40px; border-radius: 0 0 20px 20px; border: 2px solid #334; border-top: none; }
+        #timer-text { font-family: 'Space Mono'; font-size: 32px; font-weight: bold; color: #fff; }
+        
+        /* Bottom Left HUD: Player Info */
+        #hud-player { position: absolute; bottom: 30px; left: 30px; width: 350px; padding: 20px; border-left: 6px solid var(--neon-cyan); }
+        #hud-name { font-family: 'Orbitron'; font-size: 28px; text-transform: uppercase; margin-bottom: 5px; }
+        #hud-class { font-family: 'Space Mono'; font-size: 14px; color: #94a3b8; margin-bottom: 15px; }
+        .bar-bg { width: 100%; height: 20px; background: #000; border: 2px solid #334; border-radius: 10px; overflow: hidden; position: relative; margin-bottom: 10px; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.1s linear; }
+        .hp-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .sp-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        
+        /* Instructor Grade Badge */
+        #grade-badge { position: absolute; top: -25px; right: -25px; width: 70px; height: 70px; background: var(--neon-gold); color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-family: 'Space Mono'; font-size: 32px; font-weight: 900; border: 4px solid var(--neon-blue); display: none; box-shadow: 0 0 20px rgba(251,191,36,0.5); }
 
-        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
-        .scanlines { position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; pointer-events: none; z-index: 99; opacity: 0.3; }
+        /* Chat & Feed */
+        #chat-container { position: absolute; bottom: 30px; right: 30px; width: 350px; height: 250px; display: flex; flex-direction: column; background: rgba(0,0,0,0.5); border: 1px solid #334; border-radius: 8px; pointer-events: auto; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-family: 'Space Mono'; font-size: 12px; color: #ccc; }
+        #chat-input { margin: 0; border: none; border-top: 1px solid #334; border-radius: 0 0 8px 8px; }
+        
+        #kill-feed { position: absolute; top: 20px; right: 20px; width: 300px; display: flex; flex-direction: column; gap: 5px; text-align: right; pointer-events: none; }
+        .feed-item { font-family: 'Orbitron'; font-size: 14px; color: #fff; background: rgba(239, 68, 68, 0.2); border-right: 4px solid #ef4444; padding: 5px 10px; animation: slideIn 0.3s forwards; }
+
+        /* Ultimates Overlays */
+        #ult-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.85); z-index: 80; flex-direction: column; justify-content: center; align-items: center; }
+        #ult-text { font-family: 'Orbitron'; font-size: 100px; text-transform: uppercase; animation: shake 0.1s infinite; }
+        
+        /* Efectos globales */
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 10; }
+        .crt-overlay { position: absolute; inset: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%), linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06)); background-size: 100% 4px, 3px 100%; z-index: 90; pointer-events: none; opacity: 0.6; }
+        .vignette { position: absolute; inset: 0; box-shadow: 0 0 200px rgba(0,0,0,0.9) inset; z-index: 85; pointer-events: none; }
+
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes shake { 0% { transform: translate(2px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(0px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(2px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(2px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-    <div id="ult-overlay">SYSTEM ERROR: RECALCULATING...</div>
+    <!-- OVERLAYS DE EFECTOS VISUALES -->
+    <div class="crt-overlay"></div>
+    <div class="vignette"></div>
+    <div id="ult-overlay"><h1 id="ult-text">OVERRIDE</h1></div>
 
-    <div id="login-screen">
-        <div class="box">
-            <h1>LAST WORD</h1>
-            <p style="color: #64748b; margin-bottom: 20px;">ENGINE ARCHITECTURE</p>
-            <input type="text" id="username" placeholder="CALLSIGN" autocomplete="off">
-            <input type="password" id="secretKey" placeholder="KEY: admin123 OR diegox222013">
-            <button class="btn-primary" onclick="connectToServer()">CONNECT</button>
+    <!-- UI DEL MENÚ -->
+    <div id="ui-layer">
+        
+        <!-- PANTALLA LOGIN -->
+        <div id="login-screen" class="screen active glass-panel login-box" style="width: 450px; padding: 40px; pointer-events: auto;">
+            <h1 style="font-family: 'Orbitron'; font-size: 38px; color: #fff; text-align: center; margin-bottom: 20px;">WAR OF WORDS</h1>
+            <p style="text-align: center; color: #94a3b8; font-family: 'Space Mono'; margin-bottom: 20px;">v2.0 MAXIMUM OVERDRIVE</p>
+            <input type="text" id="username" placeholder="ENTER CALLSIGN (MAX 12 CHARS)" maxlength="12">
+            <button class="btn btn-cyan" onclick="joinServer()">INITIALIZE CONNECTION</button>
         </div>
-    </div>
 
-    <div id="lobby-screen">
-        <h1 style="margin-bottom: 20px;">LOBBY</h1>
-        <div class="lobby-container">
-            <div class="panel">
-                <h2 style="font-family: 'Orbitron';">SELECT CLASS</h2>
-                <div class="class-card creator" id="card-DIEGO" onclick="selectClass('DIEGO')">
-                    <h3 style="color: #00f3ff; font-size: 24px;">DIEGO (THE CREATOR)</h3>
-                    <p style="color: #94a3b8; font-size: 13px;">Trickster / Combat Engineer.<br>Glitch Field, Frame Perfect Combo, Break The Game Ulti.</p>
+        <!-- PANTALLA LOBBY -->
+        <div id="lobby-screen" class="screen glass-panel" style="width: 900px; padding: 30px;">
+            <h2 style="font-family: 'Orbitron'; color: #fff; font-size: 28px; text-align: center; margin-bottom: 20px; width: 100%;">TACTICAL DEPLOYMENT CENTER</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%;">
+                
+                <div class="lobby-section">
+                    <h3>1. SELECT CLASS</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn" style="background:#38bdf8; color:#000;" onclick="socket.emit('selectClass', 'ASSAULT')">ASSAULT</button>
+                        <button class="btn" style="background:#ef4444; color:#fff;" onclick="socket.emit('selectClass', 'HEAVY')">HEAVY</button>
+                        <button class="btn" style="background:#facc15; color:#000;" onclick="socket.emit('selectClass', 'SNIPER')">SNIPER</button>
+                        <button class="btn" style="background:#10b981; color:#000;" onclick="socket.emit('selectClass', 'MEDIC')">MEDIC</button>
+                    </div>
+                    <h4 style="margin-top: 15px; color:#fff; font-family: 'Space Mono';">ADVANCED OPERATORS</h4>
+                    <button class="btn btn-cyan" style="margin-top:5px;" onclick="socket.emit('selectClass', 'CREATOR')">CREATOR (CHAOS)</button>
+                    <button class="btn btn-blue" style="margin-top:5px;" onclick="socket.emit('selectClass', 'INSTRUCTOR')">INSTRUCTOR (ORDER)</button>
+                </div>
+
+                <div class="lobby-section">
+                    <h3>2. MISSION PARAMETERS (ADMIN)</h3>
+                    <select id="mapSelect" style="margin-top: 0; margin-bottom: 15px;">
+                        <option value="0">MAP: CYBER CITY NEON (URBAN)</option>
+                        <option value="1">MAP: LIBRARY OF BABEL (VERTICAL)</option>
+                        <option value="2">MAP: GLITCH CORE (HAZARD)</option>
+                        <option value="3">MAP: THE COURTYARD (FLAT)</option>
+                    </select>
+                    <div style="background: rgba(0,0,0,0.5); padding: 10px; border: 1px solid #334; border-radius: 5px; height: 120px; overflow-y: auto; margin-bottom: 15px;">
+                        <ul id="connected-players-list" style="list-style: none; font-family: 'Space Mono'; font-size: 12px; color: #ccc;">
+                            <li>Awaiting data...</li>
+                        </ul>
+                    </div>
+                    <button class="btn btn-red" onclick="socket.emit('adminAction', {action: 'START_GAME', mapIndex: document.getElementById('mapSelect').value})">LAUNCH MISSION</button>
                 </div>
             </div>
-            <div class="panel" id="admin-panel" style="display:none; border-color: #ef4444;">
-                <h2 style="font-family: 'Orbitron'; color: #ef4444;">OVERRIDE</h2>
-                <button class="btn-primary" style="background: #ef4444; color: white; margin-top: 30px;" onclick="socket.emit('adminAction', {action: 'START_GAME'})">START GAME</button>
-            </div>
         </div>
     </div>
 
-    <div id="game-ui">
-        <div id="hud-player">
-            <h2 id="hud-name" style="font-family:'Orbitron';">OPERATOR</h2>
-            <p id="hud-combo" style="color:#00f3ff; font-weight: bold;">COMBO TECH: x0 [STABLE]</p>
-            <div class="bar-container">
-                <div id="hp-fill" class="fill" style="background: #00f3ff; width: 100%;"></div>
-            </div>
+    <!-- UI DEL JUEGO (HUD) -->
+    <div id="hud-container">
+        <div id="hud-top">
+            <span id="timer-text">05:00</span>
+        </div>
+        
+        <div id="kill-feed"></div>
+
+        <div id="hud-player" class="glass-panel">
+            <div id="grade-badge">A+</div>
+            <h2 id="hud-name">OPERATOR</h2>
+            <div id="hud-class">CLASS: UNKNOWN</div>
+            
+            <div style="font-family: 'Space Mono'; font-size: 10px; color: #ccc; margin-bottom: 2px;">INTEGRITY</div>
+            <div class="bar-bg"><div id="hp-fill" class="bar-fill hp-fill"></div></div>
+            
+            <div style="font-family: 'Space Mono'; font-size: 10px; color: #ccc; margin-bottom: 2px;">SYSTEM STATUS</div>
+            <div id="status-text" style="font-family: 'Orbitron'; font-size: 16px; color: var(--neon-cyan); margin-bottom: 10px;">NOMINAL</div>
+        </div>
+
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <input type="text" id="chat-input" placeholder="Transmit message... (Enter to send)" maxlength="100">
         </div>
     </div>
 
+    <!-- LIENZO DE RENDERIZADO PRINCIPAL -->
     <canvas id="gameCanvas"></canvas>
-    <div class="scanlines"></div>
 
     <script>
+        // ==========================================
+        // 🛠️ MOTOR DE CLIENTE Y VARIABLES GLOBALES
+        // ==========================================
         const socket = io();
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimización de renderizado
+        let W = window.innerWidth; let H = window.innerHeight;
+        canvas.width = W; canvas.height = H;
 
-        let myId = null;
-        let gameState = { players: {}, bullets: [] };
+        window.addEventListener('resize', () => {
+            W = window.innerWidth; H = window.innerHeight;
+            canvas.width = W; canvas.height = H;
+        });
+
+        // Estado local
+        let myId = null; 
         let currentMap = null;
-        let camera = { x: 0, y: 0, shakeIntensity: 0 };
-        const inputs = { left: false, right: false, upTrigger: false, aimAngle: 0, useDash: false, useUlt: false };
-
+        let gameState = { players: {}, bullets: [], zones: [], items: [], timer: 0 };
+        let camera = { x: 0, y: 0, shake: 0 };
         let particles = [];
-        let ghosts = [];
+        let floatingTexts = [];
+        let vfxWaves = [];
 
-        function connectToServer() {
-            socket.emit('joinLobby', {
-                name: document.getElementById('username').value,
-                adminKey: document.getElementById('secretKey').value
-            });
+        // Input local
+        const inputs = { left: false, right: false, upTrigger: false, aimAngle: 0, useSkill1: false, useSkill2: false, useSkill3: false, useUlt: false };
+        let mouseX = 0; let mouseY = 0; let isShooting = false;
+
+        // ==========================================
+        // 🎵 MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API)
+        // ==========================================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const actx = new AudioContext();
+
+        class SoundEngine {
+            static playTone(freq, type, duration, vol=0.1) {
+                if(actx.state === 'suspended') actx.resume();
+                let osc = actx.createOscillator();
+                let gain = actx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, actx.currentTime);
+                osc.connect(gain); gain.connect(actx.destination);
+                gain.gain.setValueAtTime(vol, actx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + duration);
+                osc.start(); osc.stop(actx.currentTime + duration);
+            }
+            
+            static shoot() { this.playTone(400, 'square', 0.1, 0.05); }
+            static jump() { this.playTone(300, 'sine', 0.2, 0.05); setTimeout(()=>this.playTone(400, 'sine', 0.2, 0.05), 50); }
+            static explosion() {
+                if(actx.state === 'suspended') actx.resume();
+                let bufferSize = actx.sampleRate * 0.3;
+                let buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+                let data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                let noise = actx.createBufferSource(); noise.buffer = buffer;
+                let filter = actx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1000;
+                let gain = actx.createGain(); gain.gain.setValueAtTime(0.2, actx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.3);
+                noise.connect(filter); filter.connect(gain); gain.connect(actx.destination);
+                noise.start();
+            }
+            static dash() { this.playTone(800, 'sawtooth', 0.15, 0.05); }
+            static magic() { this.playTone(600, 'sine', 0.5, 0.1); this.playTone(900, 'triangle', 0.5, 0.1); }
+            static pickup() { this.playTone(1200, 'sine', 0.1, 0.1); setTimeout(()=>this.playTone(1600, 'sine', 0.2, 0.1), 100); }
+        }
+
+        // ==========================================
+        // ✨ CLASES DE EFECTOS VISUALES Y PARTÍCULAS
+        // ==========================================
+        class Particle {
+            constructor(x, y, color, type='normal') {
+                this.x = x; this.y = y; this.color = color; this.type = type;
+                this.life = 1.0; this.decay = Math.random() * 0.02 + 0.01;
+                let angle = Math.random() * Math.PI * 2;
+                let speed = Math.random() * 5 + 2;
+                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+                this.size = Math.random() * 4 + 2;
+                if(type === 'glitch') this.char = Math.random() > 0.5 ? '1' : '0';
+                if(type === 'math') {
+                    const chars = ['+', '-', 'x', '÷', '∫', '∑'];
+                    this.char = chars[Math.floor(Math.random()*chars.length)];
+                }
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= 0.95; this.vy *= 0.95;
+                this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                if(this.type === 'normal') {
+                    ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.size, this.size);
+                } else {
+                    ctx.fillStyle = this.color; ctx.font = "12px 'Space Mono'";
+                    ctx.fillText(this.char, this.x, this.y);
+                }
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function spawnParticles(x, y, color, count, type='normal') {
+            for(let i=0; i<count; i++) particles.push(new Particle(x, y, color, type));
+        }
+
+        // ==========================================
+        // 📡 LÓGICA DE RED Y SOCKETS
+        // ==========================================
+        function joinServer() {
+            let name = document.getElementById('username').value || "GUEST_" + Math.floor(Math.random()*1000);
+            socket.emit('joinLobby', { name: name });
+            actx.resume(); // Activar audio al interactuar
         }
 
         socket.on('lobbyData', (data) => {
             myId = data.me.id;
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('lobby-screen').style.display = 'flex';
-            if(data.me.isAdmin) document.getElementById('admin-panel').style.display = 'flex';
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('lobby-screen').classList.add('active');
         });
 
-        socket.on('updateLobbyPlayers', (players) => {});
+        socket.on('updateLobbyPlayers', (players) => {
+            let list = document.getElementById('connected-players-list');
+            list.innerHTML = "";
+            Object.values(players).forEach(p => {
+                let li = document.createElement('li');
+                li.innerHTML = `<span style="color:${p.color || '#fff'}">[${p.charClass}]</span> ${p.name}`;
+                list.appendChild(li);
+            });
+        });
 
         socket.on('gameStarted', (data) => {
             currentMap = data.map;
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('lobby-screen').classList.remove('active');
+            document.getElementById('hud-container').style.display = 'block';
         });
 
-        socket.on('vfxEvent', (data) => {
-            if(data.type === 'BREAK_THE_GAME') {
-                const overlay = document.getElementById('ult-overlay');
-                overlay.style.display = 'flex';
-                camera.shakeIntensity = 30;
-                setTimeout(() => { overlay.style.display = 'none'; }, 800);
-            }
+        socket.on('gameOver', () => {
+            currentMap = null;
+            document.getElementById('hud-container').style.display = 'none';
+            document.getElementById('lobby-screen').classList.add('active');
+            triggerOverlay("MATCH COMPLETE", "#fff");
         });
 
         socket.on('stateUpdate', (data) => {
             gameState = data;
+            
+            // UI Updates
             let me = gameState.players[myId];
             if (me) {
                 document.getElementById('hud-name').innerText = me.name;
-                let auraState = me.auraLevel === 3 ? 'CORRUPTED' : (me.auraLevel === 2 ? 'OVERCLOCK' : 'STABLE');
-                document.getElementById('hud-combo').innerText = `COMBO TECH: x${me.comboTech || 0} [${auraState}]`;
-                document.getElementById('hp-fill').style.width = Math.max(0, (me.hp/me.maxHp)*100) + '%';
+                document.getElementById('hud-class').innerText = `CLASS: ${me.charClass} | SCORE: ${me.score}`;
+                document.getElementById('hud-player').style.borderColor = me.color;
+                
+                let hpPct = Math.max(0, (me.hp/me.maxHp)*100);
+                document.getElementById('hp-fill').style.width = hpPct + '%';
+                
+                // Class Specific UI
+                let statusEl = document.getElementById('status-text');
+                let badge = document.getElementById('grade-badge');
+                
+                if(me.charClass === 'CREATOR') {
+                    statusEl.innerText = `COMBO: x${me.comboTech} | WEAPON: ${me.weaponMode}`;
+                    statusEl.style.color = '#00f3ff'; badge.style.display = 'none';
+                } else if (me.charClass === 'INSTRUCTOR') {
+                    let g = me.gradeScore;
+                    let letter = g >= 80 ? 'A+' : (g >= 60 ? 'A' : (g >= 40 ? 'B' : 'F'));
+                    badge.innerText = letter; badge.style.display = 'flex';
+                    badge.style.background = letter === 'A+' ? '#fbbf24' : (letter === 'F' ? '#ef4444' : '#fff');
+                    statusEl.innerText = `ACADEMIC FOCUS: ACTIVE`;
+                    statusEl.style.color = '#1e3a8a';
+                } else {
+                    statusEl.innerText = `SYSTEM STABLE`;
+                    statusEl.style.color = '#94a3b8'; badge.style.display = 'none';
+                }
+
+                // Timer Update
+                let m = Math.floor(data.timer / 60); let s = data.timer % 60;
+                document.getElementById('timer-text').innerText = `${m<10?'0':''}${m}:${s<10?'0':''}${s}`;
             }
         });
 
-        window.addEventListener('keydown', e => { 
-            if(e.code==='KeyA') inputs.left=true; 
-            if(e.code==='KeyD') inputs.right=true; 
-            if(e.code==='KeyW'||e.code==='Space') { inputs.upTrigger=true; socket.emit('playerInput', inputs); inputs.upTrigger=false; }
-            if(e.code==='ShiftLeft') { inputs.useDash=true; socket.emit('playerInput', inputs); inputs.useDash=false; }
-            if(e.code==='KeyQ') { inputs.useUlt=true; socket.emit('playerInput', inputs); inputs.useUlt=false; }
+        socket.on('vfxEvent', (data) => {
+            if(data.type === 'BREAK_THE_GAME') triggerOverlay("SYSTEM OVERRIDE", "#00f3ff", 1000);
+            if(data.type === 'FINAL_EXAM') triggerOverlay("FINAL EXAM", "#fbbf24", 1000);
+            if(data.type === 'GLITCH_DASH') spawnParticles(data.x, data.y, '#00f3ff', 20, 'glitch');
+            if(data.type === 'LISTEN_WAVE') vfxWaves.push({ x: data.x, y: data.y, r: 0, maxR: 500, color: '#2563eb' });
+            if(data.type === 'CLASSROOM_SPAWN') spawnParticles(data.x, data.y, '#fbbf24', 40, 'math');
+            if(data.type === 'EXPLOSION') { spawnParticles(data.x, data.y, '#ef4444', 30); camera.shake = 10; }
         });
-        window.addEventListener('keyup', e => { if(e.code==='KeyA') inputs.left=false; if(e.code==='KeyD') inputs.right=false; });
-        window.addEventListener('mousemove', e => { inputs.aimAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2); });
-        window.addEventListener('mousedown', () => { if(currentMap) socket.emit('shoot'); });
 
-        setInterval(() => { if(currentMap) socket.emit('playerInput', {left: inputs.left, right: inputs.right, aimAngle: inputs.aimAngle}); }, 1000/60);
+        socket.on('soundEvent', (data) => {
+            // Sonido direccional simple (volumen basado en distancia a la cámara)
+            let dist = Math.hypot(data.x - camera.x - W/2, data.y - camera.y - H/2);
+            if(dist > 2000) return; // Fuera de rango
+            if(data.type === 'shoot') SoundEngine.shoot();
+            if(data.type === 'jump') SoundEngine.jump();
+            if(data.type === 'explosion') SoundEngine.explosion();
+            if(data.type === 'dash') SoundEngine.dash();
+            if(data.type === 'magic') SoundEngine.magic();
+            if(data.type === 'pickup') SoundEngine.pickup();
+        });
+
+        socket.on('floatingText', (data) => {
+            floatingTexts.push({ x: data.x, y: data.y, text: data.text, color: data.color, life: 1.0, vy: -2 });
+        });
+
+        socket.on('eventFeed', (feed) => {
+            let container = document.getElementById('kill-feed');
+            container.innerHTML = "";
+            feed.forEach(item => {
+                let div = document.createElement('div');
+                div.className = 'feed-item'; div.innerText = item.text;
+                container.appendChild(div);
+            });
+        });
+
+        socket.on('newChatMessage', (msg) => {
+            let box = document.getElementById('chat-messages');
+            box.innerHTML += `<div><span style="color:#fbbf24">[${msg.time}]</span> <span style="color:#38bdf8">${msg.sender}:</span> ${msg.text}</div>`;
+            box.scrollTop = box.scrollHeight;
+        });
 
         // ==========================================
-        // 🖌️ RENDERIZADO VISUAL
+        // 🎮 GESTIÓN DE INPUTS Y CHAT
+        // ==========================================
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && chatInput.value.trim() !== '') {
+                socket.emit('chatMessage', chatInput.value);
+                chatInput.value = '';
+                chatInput.blur();
+            }
+            e.stopPropagation();
+        });
+
+        window.addEventListener('keydown', e => { 
+            if(document.activeElement === chatInput) return;
+            if(e.code === 'KeyA') inputs.left = true; if(e.code === 'KeyD') inputs.right = true; 
+            if(e.code === 'Space' || e.code === 'KeyW') { inputs.upTrigger = true; socket.emit('playerInput', inputs); inputs.upTrigger = false; }
+            if(e.code === 'ShiftLeft') { inputs.useSkill1 = true; socket.emit('playerInput', inputs); inputs.useSkill1 = false; }
+            if(e.code === 'KeyE') { inputs.useSkill2 = true; socket.emit('playerInput', inputs); inputs.useSkill2 = false; }
+            if(e.code === 'KeyF') { inputs.useSkill3 = true; socket.emit('playerInput', inputs); inputs.useSkill3 = false; }
+            if(e.code === 'KeyQ') { inputs.useUlt = true; socket.emit('playerInput', inputs); inputs.useUlt = false; }
+            if(e.code === 'Enter') chatInput.focus();
+        });
+        window.addEventListener('keyup', e => { 
+            if(document.activeElement === chatInput) return;
+            if(e.code === 'KeyA') inputs.left = false; if(e.code === 'KeyD') inputs.right = false; 
+        });
+        
+        window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+        window.addEventListener('mousedown', () => { if(currentMap && document.activeElement !== chatInput) isShooting = true; });
+        window.addEventListener('mouseup', () => { isShooting = false; });
+
+        // Loop de envío de input al servidor
+        setInterval(() => {
+            if(!currentMap) return;
+            let me = gameState.players[myId];
+            if(me) {
+                // Calcular ángulo global del mouse respecto a la cámara
+                let worldMouseX = mouseX + camera.x;
+                let worldMouseY = mouseY + camera.y;
+                let playerCenterX = me.x + me.w/2;
+                let playerCenterY = me.y + me.h/2;
+                inputs.aimAngle = Math.atan2(worldMouseY - playerCenterY, worldMouseX - playerCenterX);
+            }
+            socket.emit('playerInput', { left: inputs.left, right: inputs.right, aimAngle: inputs.aimAngle });
+        }, 1000/60);
+
+        // Disparo continuo
+        setInterval(() => { if(isShooting && currentMap) socket.emit('shoot'); }, 150);
+
+        function triggerOverlay(text, color, duration) {
+            let ov = document.getElementById('ult-overlay'); let txt = document.getElementById('ult-text');
+            txt.innerText = text; txt.style.color = color; txt.style.textShadow = `0 0 20px ${color}`;
+            ov.style.display = 'flex'; setTimeout(() => { ov.style.display = 'none'; }, duration);
+        }
+
+        // ==========================================
+        // 🖌️ MOTOR DE RENDERIZADO PRINCIPAL (60 FPS)
         // ==========================================
         function draw() {
             requestAnimationFrame(draw);
-            if (!currentMap) return;
+            
+            // Limpiar fondo
+            if (!currentMap) {
+                ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, W, H);
+                // Dibujar grilla decorativa de menú
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)'; ctx.lineWidth = 1;
+                for(let i=0; i<W; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+                for(let i=0; i<H; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+                return;
+            }
 
-            ctx.fillStyle = currentMap.bgColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const time = Date.now() * 0.002;
 
+            // Relleno principal
+            ctx.fillStyle = currentMap.bgColor; ctx.fillRect(0, 0, W, H);
+
+            // Actualización de Cámara suave con Screen Shake
             let me = gameState.players[myId];
-            if (me) {
-                camera.x += (me.x + me.w/2 - canvas.width/2 - camera.x) * 0.1;
-                camera.y += (me.y + me.h/2 - canvas.height/2 - camera.y) * 0.1;
+            if (me) { 
+                let targetX = me.x + me.w/2 - W/2;
+                let targetY = me.y + me.h/2 - H/2;
+                camera.x += (targetX - camera.x) * 0.1; 
+                camera.y += (targetY - camera.y) * 0.1; 
+            }
+            if(camera.shake > 0) {
+                camera.x += (Math.random()-0.5)*camera.shake; camera.y += (Math.random()-0.5)*camera.shake;
+                camera.shake *= 0.9; if(camera.shake < 0.5) camera.shake = 0;
             }
 
             ctx.save();
             ctx.translate(-camera.x, -camera.y);
 
-            // Dibujar Plataformas
-            currentMap.platforms.forEach(p => {
-                ctx.fillStyle = '#1e293b'; ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.fillStyle = '#00f3ff'; ctx.fillRect(p.x, p.y, p.w, 4);
+            // 1. DIBUJAR PARALLAX / BACKGROUND GRID
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 2;
+            let bgOffsetX = camera.x * 0.5; let bgOffsetY = camera.y * 0.5;
+            let startX = Math.floor((camera.x - bgOffsetX) / 100) * 100;
+            let endX = startX + W + 200;
+            let startY = Math.floor((camera.y - bgOffsetY) / 100) * 100;
+            let endY = startY + H + 200;
+
+            for(let i=startX; i<endX; i+=100) { ctx.beginPath(); ctx.moveTo(i + bgOffsetX, startY + bgOffsetY); ctx.lineTo(i + bgOffsetX, endY + bgOffsetY); ctx.stroke(); }
+            for(let i=startY; i<endY; i+=100) { ctx.beginPath(); ctx.moveTo(startX + bgOffsetX, i + bgOffsetY); ctx.lineTo(endX + bgOffsetX, i + bgOffsetY); ctx.stroke(); }
+
+            // 2. ZONAS (Classrooms / AoEs)
+            gameState.zones.forEach(z => {
+                ctx.fillStyle = 'rgba(30, 58, 138, 0.15)'; ctx.fillRect(z.x, z.y, z.w, z.h);
+                ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; 
+                ctx.setLineDash([10, 5]); ctx.strokeRect(z.x, z.y, z.w, z.h); ctx.setLineDash([]);
+                
+                // Texto flotante en la zona
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.5)'; ctx.font = "24px 'Space Mono'"; 
+                ctx.fillText("ACADEMIC ZONE", z.x + 20, z.y + 40);
             });
 
-            // Dibujar Jugadores
-            Object.values(gameState.players).forEach(p => {
-                if (p.hp <= 0) return;
-
-                // === AURA GLITCH FIELD DE DIEGO ===
-                if (p.charClass === 'DIEGO') {
-                    const time = Date.now() * 0.008;
-                    let primaryColor = p.auraLevel === 3 ? '#a855f7' : (p.auraLevel === 2 ? '#ffffff' : '#00f3ff');
-                    
-                    ctx.shadowColor = primaryColor;
-                    ctx.shadowBlur = p.auraLevel * 10;
-
-                    // Píxeles/Símbolos Flotantes alrededor
-                    for(let i=0; i<p.auraLevel*3; i++) {
-                        let px = p.x + Math.sin(time + i)*30;
-                        let py = p.y + Math.cos(time + i)*30;
-                        ctx.fillStyle = Math.random() > 0.5 ? '#00f3ff' : '#a855f7';
-                        ctx.fillRect(px, py, 4, 4);
-                    }
+            // 3. PLATAFORMAS
+            currentMap.platforms.forEach(p => {
+                if (p.type === 'glass') {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p.x, p.y, p.w, p.h);
+                } else if (p.type === 'metal') {
+                    ctx.fillStyle = '#334155'; ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.fillStyle = '#94a3b8'; ctx.fillRect(p.x, p.y, p.w, 4); // Borde superior brillante
+                } else if (p.type === 'glitch') {
+                    ctx.fillStyle = Math.random() > 0.9 ? '#f0f' : '#111'; ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.strokeStyle = '#00f3ff'; ctx.strokeRect(p.x, p.y, p.w, p.h);
+                } else {
+                    // Arena estándar
+                    ctx.fillStyle = '#0f172a'; ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.fillStyle = '#0ea5e9'; ctx.fillRect(p.x, p.y, p.w, 3);
                 }
+            });
 
-                // Render Personaje (Chaqueta Oscura + Gafas Brillantess)
-                ctx.fillStyle = '#0f172a'; // Chaqueta muy oscura
-                ctx.fillRect(p.x, p.y, p.w, p.h);
-
-                // Gafas Cyan Brillantes
-                ctx.fillStyle = p.charClass === 'DIEGO' ? '#00f3ff' : '#fff';
-                let aimX = Math.cos(p.aimAngle)*4;
-                let aimY = Math.sin(p.aimAngle)*4;
-                ctx.fillRect(p.x + 6 + aimX, p.y + 10 + aimY, 20, 6);
-
+            // 4. ITEMS
+            gameState.items.forEach(it => {
+                ctx.fillStyle = it.type === 'HEALTH' ? '#10b981' : (it.type === 'AMMO' ? '#facc15' : '#00f3ff');
+                ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 15;
+                let floatY = Math.sin(time * 3) * 5;
+                ctx.fillRect(it.x, it.y + floatY, it.w, it.h);
                 ctx.shadowBlur = 0;
             });
 
-            // Dibujar Proyectiles BYTE BLASTER
+            // 5. ONDAS VFX
+            for(let i=vfxWaves.length-1; i>=0; i--) {
+                let w = vfxWaves[i]; w.r += 20;
+                ctx.strokeStyle = w.color; ctx.lineWidth = 5 * (1 - w.r/w.maxR);
+                ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI*2); ctx.stroke();
+                if(w.r >= w.maxR) vfxWaves.splice(i,1);
+            }
+
+            // 6. JUGADORES
+            Object.values(gameState.players).forEach(p => {
+                if (p.hp <= 0) return;
+
+                let cx = p.x + p.w/2; let cy = p.y + p.h/2;
+
+                // Auras Visuales Complejas (Contraste Creador vs Instructora)
+                if (p.charClass === 'CREATOR') {
+                    ctx.fillStyle = p.comboTech >= 10 ? '#ffffff' : '#00f3ff';
+                    for(let i=0; i<6; i++) {
+                        let px = cx + (Math.random()-0.5)*80; let py = cy + (Math.random()-0.5)*80;
+                        ctx.font = "14px monospace"; ctx.fillText(Math.random()>0.5?"1":"0", px, py);
+                    }
+                    if(p.modeChaosTimer > 0) { ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2; ctx.strokeRect(p.x-5, p.y-5, p.w+10, p.h+10); }
+                } 
+                else if (p.charClass === 'INSTRUCTOR') {
+                    ctx.fillStyle = p.gradeScore >= 80 ? '#fbbf24' : '#1e3a8a';
+                    let words = ["GRAMMAR", "FOCUS", "REPEAT"];
+                    for(let i=0; i<3; i++) {
+                        let angle = time + (i * Math.PI * 2 / 3);
+                        let px = cx + Math.cos(angle)*60; let py = cy + Math.sin(angle)*60;
+                        ctx.font = "12px 'Space Mono'"; ctx.fillText(words[i], px - 20, py);
+                    }
+                    // Borde de orden perfecto
+                    ctx.strokeStyle = p.gradeScore >= 80 ? '#fbbf24' : '#1e3a8a';
+                    ctx.lineWidth = 1; ctx.strokeRect(p.x-8, p.y-8, p.w+16, p.h+16);
+                }
+
+                // Indicador de Debuffs
+                if (p.stunTimer > 0) { ctx.fillStyle = "rgba(251, 191, 36, 0.4)"; ctx.fillRect(p.x, p.y, p.w, p.h); }
+                if (p.slowTimer > 0) { ctx.strokeStyle = "#1e3a8a"; ctx.lineWidth = 3; ctx.strokeRect(p.x-2, p.y-2, p.w+4, p.h+4); }
+                if (p.iFrames > 0) ctx.globalAlpha = 0.5;
+
+                // Cuerpo del Personaje
+                ctx.fillStyle = p.color; 
+                ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.shadowBlur = 0;
+
+                // Visor/Arma
+                ctx.fillStyle = '#fff';
+                let aimX = Math.cos(p.aimAngle)*8; let aimY = Math.sin(p.aimAngle)*8;
+                
+                // Detalles según clase
+                if(p.charClass === 'SNIPER') {
+                    // Láser del francotirador
+                    ctx.strokeStyle = 'rgba(250, 204, 21, 0.3)'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(p.aimAngle)*1000, cy + Math.sin(p.aimAngle)*1000); ctx.stroke();
+                    ctx.fillRect(cx - 5 + aimX, cy - 5 + aimY, 25, 4); // Rifle largo
+                } else if(p.charClass === 'HEAVY') {
+                    ctx.fillRect(cx - 8 + aimX, cy - 8 + aimY, 20, 16); // Arma gruesa
+                } else if (p.charClass === 'INSTRUCTOR') {
+                    ctx.fillRect(cx - 8 + aimX, cy - 15 + aimY, 16, 4); // Gafas
+                    ctx.fillStyle = '#ef4444'; ctx.fillRect(cx + aimX*2, cy + aimY*2, 20, 2); // Red Pen
+                } else {
+                    ctx.fillRect(cx - 6 + aimX, cy - 6 + aimY, 15, 6); // Arma estándar
+                }
+                ctx.globalAlpha = 1.0;
+
+                // Barras de HP flotantes (para enemigos)
+                if(p.id !== myId) {
+                    ctx.fillStyle = '#000'; ctx.fillRect(p.x, p.y - 15, p.w, 5);
+                    ctx.fillStyle = p.hp > p.maxHp*0.5 ? '#10b981' : '#ef4444';
+                    ctx.fillRect(p.x, p.y - 15, p.w * (p.hp/p.maxHp), 5);
+                    ctx.fillStyle = '#fff'; ctx.font = "10px 'Orbitron'"; ctx.textAlign = 'center';
+                    ctx.fillText(p.name, cx, p.y - 20); ctx.textAlign = 'left';
+                }
+            });
+
+            // 7. PROYECTILES
             gameState.bullets.forEach(b => {
                 ctx.fillStyle = b.color;
-                ctx.shadowColor = b.color; ctx.shadowBlur = 10;
-                ctx.fillRect(b.x - b.size/2, b.y - b.size/2, b.size, b.size); // Píxeles cuadrados
+                
+                if (b.type === 'PEN') {
+                    ctx.font = "bold 20px 'Space Mono'"; 
+                    ctx.fillText(b.sign, b.x-8, b.y+8);
+                    spawnParticles(b.x, b.y, b.color, 1); // Rastro
+                } 
+                else if (b.type === 'ROCKET') {
+                    ctx.fillRect(b.x - b.size/2, b.y - b.size/2, b.size, b.size);
+                    spawnParticles(b.x, b.y, '#f97316', 3); // Rastro de humo/fuego
+                }
+                else if (b.type === 'SNIPER') {
+                    ctx.beginPath(); ctx.moveTo(b.x, b.y); 
+                    ctx.lineTo(b.x - b.vx*1.5, b.y - b.vy*1.5); // Traza larga
+                    ctx.strokeStyle = b.color; ctx.lineWidth = b.size; ctx.stroke();
+                }
+                else {
+                    ctx.shadowColor = b.color; ctx.shadowBlur = 10;
+                    ctx.fillRect(b.x - b.size/2, b.y - b.size/2, b.size, b.size);
+                    ctx.shadowBlur = 0;
+                    if(b.type === 'ARDUINO') spawnParticles(b.x, b.y, b.color, 1, 'glitch');
+                }
             });
-            ctx.shadowBlur = 0;
+
+            // 8. PARTÍCULAS
+            for(let i=particles.length-1; i>=0; i--) {
+                let pt = particles[i]; pt.update(); pt.draw(ctx);
+                if(pt.life <= 0) particles.splice(i,1);
+            }
+
+            // 9. TEXTOS FLOTANTES (Daño, debuffs, notas)
+            for(let i=floatingTexts.length-1; i>=0; i--) {
+                let ft = floatingTexts[i]; 
+                ft.y += ft.vy; ft.life -= 0.02; 
+                ctx.globalAlpha = Math.max(0, ft.life); 
+                ctx.fillStyle = ft.color; 
+                ctx.font = "bold 18px 'Orbitron'"; ctx.textAlign = "center"; 
+                // Contorno negro para legibilidad
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillText(ft.text, ft.x, ft.y); 
+                ctx.globalAlpha = 1; ctx.textAlign = "left";
+                if(ft.life <= 0) floatingTexts.splice(i,1); 
+            }
+
+            // Apuntar con línea guía local (Ayuda visual)
+            let meP = gameState.players[myId];
+            if(meP && currentMap) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(meP.x+meP.w/2, meP.y+meP.h/2);
+                ctx.lineTo(meP.x+meP.w/2 + Math.cos(inputs.aimAngle)*150, meP.y+meP.h/2 + Math.sin(inputs.aimAngle)*150); ctx.stroke();
+            }
 
             ctx.restore();
+            
+            // UI Overlay Dibujado en Canvas (Retícula)
+            if(currentMap) {
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(mouseX, mouseY, 10, 0, Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(mouseX-15, mouseY); ctx.lineTo(mouseX-5, mouseY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(mouseX+5, mouseY); ctx.lineTo(mouseX+15, mouseY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(mouseX, mouseY-15); ctx.lineTo(mouseX, mouseY-5); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(mouseX, mouseY+5); ctx.lineTo(mouseX, mouseY+15); ctx.stroke();
+            }
         }
+        
+        // Iniciar loop
         draw();
+
     </script>
 </body>
 </html>
