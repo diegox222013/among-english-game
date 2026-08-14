@@ -1,7 +1,7 @@
 {
-  "name": "among-english",
+  "name": "ninja-online-buffed",
   "version": "1.0.0",
-  "description": "Multiplayer English learning game based on Among Us",
+  "description": "Multiplayer 2D Arena God Mode",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
