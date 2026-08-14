@@ -7,14 +7,15 @@ app.use(express.static('public'));
 
 const WORLD_WIDTH = 5760;
 const WORLD_HEIGHT = 1600;
-
-// CLAVE SECRETA DE ADMIN (Solo tú la sabes)
 const ADMIN_KEY = "admin123";
 
 const PLATFORMS = [
-    { x: 0, y: 1500, w: 1800, h: 100, type: 'grass' },
-    { x: 1950, y: 1540, w: 1800, h: 60, type: 'dirt' },
-    { x: 3900, y: 1480, w: 1860, h: 120, type: 'grass' },
+    // SUELO CORREGIDO: Cubre exactamente los 5760px sin huecos para que el TP lateral sea perfecto
+    { x: 0, y: 1500, w: 2000, h: 100, type: 'grass' },
+    { x: 2000, y: 1540, w: 2000, h: 60, type: 'dirt' },
+    { x: 4000, y: 1480, w: 1760, h: 120, type: 'grass' },
+
+    // Bosque y Ruinas (Optimizados para parkour)
     { x: 400, y: 1300, w: 250, h: 25, type: 'wood' },
     { x: 300, y: 1100, w: 200, h: 25, type: 'wood' },
     { x: 550, y: 920, w: 300, h: 30, type: 'wood' },
@@ -34,8 +35,8 @@ const PLATFORMS = [
 
 const PLAYERS = {};
 const BULLETS = [];
-const VINES = [];      // 1. Enredaderas
-const TORNADOS = [];   // 2. Tornados de Viento
+const VINES = [];
+const TORNADOS = [];
 
 function checkCollision(r1, r2) {
     return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
@@ -43,7 +44,6 @@ function checkCollision(r1, r2) {
 }
 
 io.on('connection', (socket) => {
-
     socket.on('joinGame', (data) => {
         const username = data.name || "Guerrero";
         const pass = data.adminKey;
@@ -51,39 +51,24 @@ io.on('connection', (socket) => {
         let pClass = 'RECLUTA';
         let isAdmin = false;
 
-        // VERIFICACIÓN DE ADMIN EXCLUSIVO
         if (pass === ADMIN_KEY) {
-            pClass = 'NINJA'; // Solo tú puedes tener la clase Ninja con tu clave
+            pClass = 'NINJA';
             isAdmin = true;
         }
 
         PLAYERS[socket.id] = {
-            id: socket.id,
-            name: username,
-            classType: pClass,
-            isAdmin: isAdmin,
-            weapon: data.weapon || 'rifle',
-            skill: data.skill || 'grapple',
-            x: Math.random() * 3000 + 500,
-            y: 300,
-            w: 32, h: 50,
-            vx: 0, vy: 0,
-            aimAngle: 0,
+            id: socket.id, name: username, classType: pClass, isAdmin: isAdmin,
+            weapon: data.weapon || 'rifle', skill: data.skill || 'grapple',
+            x: Math.random() * 3000 + 500, y: 300,
+            w: 32, h: 50, vx: 0, vy: 0, aimAngle: 0,
             hp: pClass === 'NINJA' ? 140 : 100,
             maxHp: pClass === 'NINJA' ? 140 : 100,
-            abilityCD: 0,
-            slowedTimer: 0,
-            score: 0,
+            abilityCD: 0, slowedTimer: 0, score: 0,
+            onGround: false,
             grapple: { active: false, x: 0, y: 0 }
         };
 
-        socket.emit('registered', { 
-            id: socket.id, 
-            platforms: PLATFORMS, 
-            worldW: WORLD_WIDTH, 
-            worldH: WORLD_HEIGHT,
-            isAdmin: isAdmin
-        });
+        socket.emit('registered', { id: socket.id, platforms: PLATFORMS, worldW: WORLD_WIDTH, worldH: WORLD_HEIGHT, isAdmin: isAdmin });
     });
 
     socket.on('playerInput', (data) => {
@@ -92,20 +77,20 @@ io.on('connection', (socket) => {
 
         p.aimAngle = data.aimAngle || 0;
 
-        let spd = p.classType === 'NINJA' ? 10 : 7;
-        if (p.slowedTimer > 0) spd = 2.5; // Frenado por Enredaderas
+        let spd = p.classType === 'NINJA' ? 1.6 : 1.3;
+        if (p.slowedTimer > 0) spd = 0.5;
 
-        if (data.left) p.vx -= 1.2;
-        if (data.right) p.vx += 1.2;
+        // Buff: Movimiento más ágil
+        if (data.left) p.vx -= spd;
+        if (data.right) p.vx += spd;
 
-        p.vx *= 0.85;
-
+        // Buff de Salto
         if (data.up && p.onGround) {
-            p.vy = -14;
+            p.vy = -16;
             p.onGround = false;
         }
 
-        // GRAPPLE CONTINUO (Manteniendo Clic Derecho)
+        // BUFF DE GRAPPLE: Más fuerza, más inercia
         if (data.holdingRightClick && p.skill === 'grapple' && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
@@ -116,45 +101,28 @@ io.on('connection', (socket) => {
             let dy = p.grapple.y - (p.y + p.h / 2);
             let dist = Math.hypot(dx, dy);
 
-            p.vx += (dx / dist) * 0.95;
-            p.vy += (dy / dist) * 0.95;
+            // Jala mucho más fuerte
+            p.vx += (dx / dist) * 1.8;
+            p.vy += (dy / dist) * 1.8;
         } else {
             p.grapple.active = false;
         }
     });
 
-    // ACTIVACIÓN DE LAS 3 NUEVAS HABILIDADES
     socket.on('useAbilityTrigger', (data) => {
         const p = PLAYERS[socket.id];
         if (!p || p.abilityCD > 0 || p.hp <= 0) return;
 
-        // 1. ENREDADERA ESPINOSA
         if (p.skill === 'vines' && data.targetPoint) {
-            VINES.push({
-                x: data.targetPoint.x - 40,
-                y: data.targetPoint.y - 60,
-                w: 80, h: 60,
-                life: 300, // Dura 5 Segundos
-                ownerId: p.id
-            });
-            p.abilityCD = 240; // Cooldown 4s
+            VINES.push({ x: data.targetPoint.x - 40, y: data.targetPoint.y - 60, w: 80, h: 60, life: 300, ownerId: p.id });
+            p.abilityCD = 240;
         }
-
-        // 2. TORNADO FOLIAR (Impulso de Viento)
         if (p.skill === 'tornado' && data.targetPoint) {
-            TORNADOS.push({
-                x: data.targetPoint.x - 35,
-                y: data.targetPoint.y - 120,
-                w: 70, h: 140,
-                life: 180, // Dura 3 Segundos
-                ownerId: p.id
-            });
+            TORNADOS.push({ x: data.targetPoint.x - 35, y: data.targetPoint.y - 120, w: 70, h: 140, life: 180, ownerId: p.id });
             p.abilityCD = 300;
         }
-
-        // 3. PISOTÓN SÍSMICO (Slam desde el aire)
         if (p.skill === 'slam') {
-            p.vy = 28; // Caída instantánea
+            p.vy = 32; 
             p.isSlamming = true;
             p.abilityCD = 200;
         }
@@ -168,51 +136,47 @@ io.on('connection', (socket) => {
         let startX = p.x + p.w / 2;
         let startY = p.y + p.h / 3;
 
+        // Buff: Proyectiles más rápidos
         if (p.weapon === 'shotgun') {
-            for (let i = -2; i <= 2; i++) {
-                BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle + i*0.08)*16, vy: Math.sin(angle + i*0.08)*16, damage: 12, life: 35 });
-            }
+            for (let i = -2; i <= 2; i++) BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle + i*0.08)*22, vy: Math.sin(angle + i*0.08)*22, damage: 14, life: 30 });
         } else if (p.weapon === 'sniper') {
-            BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle)*28, vy: Math.sin(angle)*28, damage: 55, life: 90 });
+            BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle)*38, vy: Math.sin(angle)*38, damage: 65, life: 100 });
         } else {
-            BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle)*19, vy: Math.sin(angle)*19, damage: 20, life: 60 });
+            BULLETS.push({ id: Math.random(), ownerId: socket.id, x: startX, y: startY, vx: Math.cos(angle)*25, vy: Math.sin(angle)*25, damage: 22, life: 70 });
         }
     });
 
     socket.on('disconnect', () => delete PLAYERS[socket.id]);
 });
 
-// BUCLE DE FÍSICAS Y LÓGICA DE HABILIDADES
 setInterval(() => {
-    // Actualizar Enredaderas
     for (let i = VINES.length - 1; i >= 0; i--) {
         VINES[i].life--;
         Object.values(PLAYERS).forEach(p => {
-            if (p.id !== VINES[i].ownerId && checkCollision(p, VINES[i])) {
-                p.slowedTimer = 30; // Ralentiza al enemigo
-                p.hp -= 0.2; // Daño constante
-            }
+            if (p.id !== VINES[i].ownerId && checkCollision(p, VINES[i])) { p.slowedTimer = 30; p.hp -= 0.3; }
         });
         if (VINES[i].life <= 0) VINES.splice(i, 1);
     }
 
-    // Actualizar Tornados de Viento
     for (let i = TORNADOS.length - 1; i >= 0; i--) {
         TORNADOS[i].life--;
         Object.values(PLAYERS).forEach(p => {
-            if (checkCollision(p, TORNADOS[i])) {
-                p.vy = -18; // Super Salto hacia arriba
-            }
+            if (checkCollision(p, TORNADOS[i])) p.vy = -22; // Salto enorme buffeado
         });
         if (TORNADOS[i].life <= 0) TORNADOS.splice(i, 1);
     }
 
-    // Actualizar Jugadores
     Object.values(PLAYERS).forEach(p => {
+        if (p.hp <= 0) return;
+
         if (p.abilityCD > 0) p.abilityCD--;
         if (p.slowedTimer > 0) p.slowedTimer--;
 
-        p.vy += p.grapple.active ? 0.3 : 0.55;
+        // Buff Control Aéreo: Fricción menor en el aire para mantener inercia
+        p.vx *= p.onGround ? 0.80 : 0.96; 
+        
+        // Buff Gravedad: Si usas grapple, caes lentísimo
+        p.vy += p.grapple.active ? 0.1 : 0.6;
 
         p.x += p.vx;
         PLATFORMS.forEach(plat => {
@@ -229,21 +193,15 @@ setInterval(() => {
             if (checkCollision(p, plat)) {
                 if (p.vy > 0) {
                     p.y = plat.y - p.h;
-
-                    // Explosión de Pisotón Sísmico al tocar el suelo
                     if (p.isSlamming) {
                         p.isSlamming = false;
                         Object.values(PLAYERS).forEach(enemy => {
                             if (enemy.id !== p.id) {
                                 let dist = Math.hypot((enemy.x + enemy.w/2) - (p.x + p.w/2), (enemy.y + enemy.h/2) - (p.y + p.h/2));
-                                if (dist < 250) {
-                                    enemy.hp -= 35;
-                                    enemy.vy = -12; // Lo lanza por los aires
-                                }
+                                if (dist < 300) { enemy.hp -= 40; enemy.vy = -16; enemy.vx = (enemy.x - p.x > 0) ? 10 : -10; }
                             }
                         });
                     }
-
                     p.vy = 0;
                     p.onGround = true;
                 } else if (p.vy < 0) {
@@ -253,29 +211,37 @@ setInterval(() => {
             }
         });
 
-        if (p.x < -p.w) p.x = WORLD_WIDTH - 20;
-        if (p.x > WORLD_WIDTH) p.x = 0;
+        // 1. CORRECCIÓN PAC-MAN LATERAL (Suave)
+        if (p.x < -p.w) p.x = WORLD_WIDTH - 1;
+        if (p.x > WORLD_WIDTH) p.x = -p.w + 1;
+
+        // 2. CORRECCIÓN DE VACÍO (Muerte por caída)
+        if (p.y > WORLD_HEIGHT + 200) {
+            p.hp = 0;
+            setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; p.vx = 0; p.vy = 0; }, 2000);
+        }
     });
 
-    // Balas
     BULLETS.forEach((b, i) => {
         b.x += b.vx; b.y += b.vy; b.life--;
-        let bulletRect = { x: b.x - 4, y: b.y - 4, w: 8, h: 8 };
+        let bRect = { x: b.x - 4, y: b.y - 4, w: 8, h: 8 };
 
-        if (PLATFORMS.some(plat => checkCollision(bulletRect, plat))) b.life = 0;
+        if (b.x < 0) b.x = WORLD_WIDTH;
+        if (b.x > WORLD_WIDTH) b.x = 0;
+
+        if (PLATFORMS.some(plat => checkCollision(bRect, plat))) b.life = 0;
 
         Object.values(PLAYERS).forEach(p => {
-            if (p.id !== b.ownerId && p.hp > 0 && checkCollision(bulletRect, p)) {
+            if (p.id !== b.ownerId && p.hp > 0 && checkCollision(bRect, p)) {
                 p.hp -= b.damage;
                 b.life = 0;
                 if (p.hp <= 0) {
                     p.hp = 0;
                     if (PLAYERS[b.ownerId]) PLAYERS[b.ownerId].score++;
-                    setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; }, 2500);
+                    setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; p.vx = 0; p.vy = 0; }, 2000);
                 }
             }
         });
-
         if (b.life <= 0) BULLETS.splice(i, 1);
     });
 
@@ -283,4 +249,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Servidor iniciado en puerto ${PORT}`));
+http.listen(PORT, () => console.log(`Servidor Buffeado activo en puerto ${PORT}`));
