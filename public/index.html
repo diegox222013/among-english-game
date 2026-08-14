@@ -8,7 +8,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        /* LOBBY & OVERLAYS */
         #main-lobby { position: absolute; inset: 0; display: flex; flex-direction: row; z-index: 20; }
         @media (max-width: 768px) { #main-lobby { flex-direction: column; } }
 
@@ -44,7 +43,6 @@
         button:hover { background: #10b981; transform: scale(1.02); }
         .btn-close { background: #ef4444; color: white; margin-top: 15px; }
 
-        /* HUD & CHAT */
         #hud {
             position: absolute; top: 15px; left: 15px; pointer-events: none; display: none;
             background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399; padding: 12px; border-radius: 12px; z-index: 10;
@@ -62,9 +60,8 @@
         .msg-system { color: #fcd34d; font-style: italic; }
         .msg-admin { color: #fbbf24; font-weight: bold; text-shadow: 0 0 5px #fbbf24; }
         .msg-user { color: #34d399; font-weight: bold; }
-        #chat-input { border-none; border-top: 1px solid #475569; background: rgba(30, 41, 59, 0.9); padding: 8px; color: white; font-size: 13px; }
+        #chat-input { border: none; border-top: 1px solid #475569; background: rgba(30, 41, 59, 0.9); padding: 8px; color: white; font-size: 13px; }
 
-        /* MOBILE CONTROLS */
         #mobile-controls { position: absolute; inset: 0; pointer-events: none; z-index: 15; display: none; }
         .touch-btn {
             position: absolute; pointer-events: auto; background: rgba(15, 23, 42, 0.6);
@@ -128,7 +125,7 @@
             <ul style="color: #e2e8f0; line-height: 1.6; margin-left: 20px; font-size: 14px;">
                 <li><b>💻 En PC:</b> <kbd>A</kbd>/<kbd>D</kbd> Moverse. <kbd>W</kbd>/<kbd>Espacio</kbd> Saltar.</li>
                 <li><b>🖱️ Ratón:</b> Clic Izquierdo = Disparar. Clic Derecho = Habilidad.</li>
-                <li><b>🪝 Grapple (Admin):</b> Física real. Apunta, mantén clic derecho para engancharte y balancéate con la inercia (Spiderman).</li>
+                <li><b>🪝 Grapple (Admin):</b> Pulsa Clic Derecho para engancharte y catapúltate con el aura activada.</li>
                 <li><b>📱 Móvil:</b> Controles táctiles en pantalla soportan multitoque.</li>
             </ul>
             <button class="btn-close" onclick="showScreen('main')">ENTENDIDO</button>
@@ -165,12 +162,13 @@
 
         let myId = null;
         let platforms = [];
-        let gameState = { players: {}, bullets: [], vines: [], tornados: [] };
+        let gameState = { players: {}, bullets: [], vines: [], tornados: [], auraParticles: [] };
         const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
         let mouse = { x: canvas.width/2, y: canvas.height/2 };
         let currentCamX = 0; let currentCamY = 0;
         let isPlaying = false;
         let isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        let colorHue = 0; // Para el efecto RGB del aura
 
         function showScreen(screen) {
             document.getElementById('main-lobby').style.display = screen === 'main' ? 'flex' : 'none';
@@ -194,11 +192,9 @@
             isPlaying = true;
         }
 
-        // RED
         socket.on('registered', data => { myId = data.id; platforms = data.platforms; });
         socket.on('stateUpdate', data => gameState = data);
 
-        // CHAT
         const chatMessages = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         socket.on('chatMessage', data => {
@@ -212,7 +208,6 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         });
 
-        // INPUTS
         window.addEventListener('keydown', e => {
             if (!isPlaying) return;
             if (e.key === 'Enter') {
@@ -240,7 +235,6 @@
         window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // MÓVIL
         function bindTouchBtn(id, onPress, onRelease) {
             const btn = document.getElementById(id);
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); });
@@ -264,7 +258,6 @@
             }
         }, 1000 / 60);
 
-        // GRÁFICOS MEJORADOS
         function drawGrid(ctx, camX, camY) {
             ctx.strokeStyle = "rgba(52, 211, 153, 0.05)"; ctx.lineWidth = 1;
             const size = 100;
@@ -279,6 +272,9 @@
         function draw() {
             if (!isPlaying) return requestAnimationFrame(draw);
 
+            colorHue = (colorHue + 2) % 360; // Tono cambiente para el aura RGB
+            let auraColor = `hsl(${colorHue}, 100%, 60%)`;
+
             let me = gameState.players[myId];
             if (me) {
                 let targetCamX = me.x - canvas.width / 2;
@@ -287,7 +283,6 @@
                 currentCamY += (targetCamY - currentCamY) * 0.1;
             }
 
-            // Fondo Degradado y Grid
             let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             bgGrad.addColorStop(0, '#020617');
             bgGrad.addColorStop(1, '#064e3b');
@@ -298,12 +293,23 @@
             ctx.translate(-currentCamX, -currentCamY);
             drawGrid(ctx, currentCamX, currentCamY);
 
+            // Renderizar Partículas de Aura Admin
+            (gameState.auraParticles || []).forEach(part => {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = auraColor;
+                ctx.fillStyle = auraColor;
+                ctx.beginPath();
+                ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
             // Plataformas
             platforms.forEach(plat => {
                 ctx.shadowBlur = 15;
                 if (plat.type === 'grass') {
                     ctx.shadowColor = '#065f46'; ctx.fillStyle = '#064e3b'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                    ctx.fillStyle = '#34d399'; ctx.fillRect(plat.x, plat.y, plat.w, 8); // Borde neón arriba
+                    ctx.fillStyle = '#34d399'; ctx.fillRect(plat.x, plat.y, plat.w, 8);
                 } else if (plat.type === 'wood' || plat.type === 'leaves') {
                     ctx.shadowColor = '#78350f'; ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#451a03'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
                 } else {
@@ -312,18 +318,18 @@
                 ctx.shadowBlur = 0;
             });
 
-            // Efectos Ambientales (Habilidades)
+            // Habilidades
             (gameState.vines || []).forEach(v => { ctx.shadowBlur=20; ctx.shadowColor='#10b981'; ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'; ctx.fillRect(v.x, v.y, v.w, v.h); ctx.shadowBlur=0; });
             (gameState.tornados || []).forEach(t => { ctx.shadowBlur=20; ctx.shadowColor='#38bdf8'; ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.shadowBlur=0; });
 
             // Jugadores
             Object.values(gameState.players).forEach(p => {
                 if (p.hp > 0) {
-                    // Grapple Visual (Telaraña brillante)
+                    // Grapple Visual
                     if (p.grapple && p.grapple.active && p.isAdmin) {
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
-                        ctx.lineWidth = 2.5;
-                        ctx.shadowColor = '#ffffff';
+                        ctx.strokeStyle = auraColor; 
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = auraColor;
                         ctx.shadowBlur = 15;
                         ctx.beginPath(); 
                         ctx.moveTo(p.x + p.w/2, p.y + 15); 
@@ -336,8 +342,21 @@
                     let baseColor = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
                     if (isEnemy) baseColor = '#ef4444';
 
-                    // Cuerpo del Jugador con Glow
-                    ctx.shadowBlur = 20; ctx.shadowColor = baseColor;
+                    // DIBUJAR AURA ADMIN SI ES ADMIN
+                    if (p.isAdmin) {
+                        ctx.shadowBlur = 30;
+                        ctx.shadowColor = auraColor;
+                        ctx.strokeStyle = auraColor;
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.roundRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8, 10);
+                        ctx.stroke();
+                    } else {
+                        ctx.shadowBlur = 20; 
+                        ctx.shadowColor = baseColor;
+                    }
+
+                    // Cuerpo del Jugador
                     ctx.fillStyle = baseColor;
                     ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
                     ctx.shadowBlur = 0;
@@ -351,9 +370,7 @@
                     ctx.shadowColor = '#ffffff';
                     ctx.shadowBlur = 10;
                     ctx.beginPath();
-                    // Ojo delantero
                     ctx.roundRect(p.x + (dir > 0 ? 20 : 5), eyeY, eyeW, eyeH, 3);
-                    // Ojo trasero
                     ctx.roundRect(p.x + (dir > 0 ? 10 : 15), eyeY, eyeW, eyeH, 3);
                     ctx.fill();
                     ctx.shadowBlur = 0;
@@ -368,7 +385,7 @@
                 }
             });
 
-            // Proyectiles brillantes
+            // Proyectiles
             gameState.bullets.forEach(b => {
                 let color = b.damage > 30 ? '#ef4444' : '#38bdf8';
                 ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
