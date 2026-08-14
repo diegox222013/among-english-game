@@ -1,151 +1,208 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>LAST WORD: WAR OF WORDS</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #020617; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+const express = require('express');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http, { cors: { origin: "*" } });
 
-        #login-screen { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #0f172a 0%, #020617 100%); z-index: 50; }
-        .box { background: rgba(15, 23, 42, 0.8); border: 2px solid #38bdf8; padding: 40px; border-radius: 15px; width: 420px; text-align: center; box-shadow: 0 0 25px rgba(56, 189, 248, 0.3); backdrop-filter: blur(10px); }
-        .box h1 { font-family: 'Orbitron', sans-serif; color: #38bdf8; font-size: 26px; margin-bottom: 5px; text-shadow: 0 0 10px #38bdf8; }
-        .box p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+app.use(express.static('public'));
 
-        input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; font-family: 'Orbitron', sans-serif; outline: none; }
-        input { background: #1e293b; color: #fff; border: 1px solid #334155; }
-        button { background: #38bdf8; color: #020617; font-weight: 900; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #7dd3fc; transform: scale(1.02); }
+// CONFIGURACIONES Y CLAVES
+const NINJA_SECRET_KEY = "diegox222013";
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 1600;
 
-        /* HUD TÁCTICO EN TIEMPO REAL */
-        #intel-banner { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid #38bdf8; padding: 12px 30px; border-radius: 30px; font-family: 'Orbitron', sans-serif; font-size: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8); display: none; z-index: 10; }
-        
-        #hud-player { position: absolute; bottom: 20px; left: 20px; background: rgba(2, 6, 23, 0.8); border-left: 4px solid #38bdf8; padding: 15px 20px; border-radius: 8px; display: none; }
-        .bar { width: 180px; height: 10px; background: #1e293b; border-radius: 5px; margin-top: 5px; overflow: hidden; }
-        .fill { height: 100%; background: #38bdf8; transition: 0.2s; }
-        canvas { display: block; }
-    </style>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-</head>
-<body>
+// PLATAFORMAS (Plataformas destructibles / dinámicas)
+const PLATFORMS = [
+    { id: 'floor1', x: 0, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
+    { id: 'floor2', x: 2200, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
+    { id: 'plat_left', x: 400, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true },
+    { id: 'plat_mid', x: 1800, y: 950, w: 400, h: 30, type: 'bridge', active: true },
+    { id: 'plat_right', x: 3000, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true }
+];
 
-    <div id="login-screen">
-        <div class="box">
-            <h1>LAST WORD</h1>
-            <p>WAR OF WORDS — COMPETITIVE 2D</p>
-            <input type="text" id="username" placeholder="OPERATOR NICKNAME">
-            <input type="password" id="secretKey" placeholder="SECRET ACCESS CODE (OPTIONAL)">
-            <button onclick="enterArena()">DEPLOY TO ARENA</button>
-        </div>
-    </div>
+const PLAYERS = {};
+const BULLETS = [];
+const TACTICAL_NOTICES = {}; // Mensajes asimétricos por jugador
 
-    <div id="intel-banner"><span id="intel-text">📡 CONNECTING TO TACTICAL FREQUENCY...</span></div>
+// ESTADO GLOBAL DEL JUEGO
+let GAME_MODE = 'FFA'; // 'FFA', 'TEAM', 'WORD_RUSH', 'HUNTER', 'CREATOR_BOSS'
+let CREATOR_BOSS = null;
 
-    <div id="hud-player">
-        <h3 id="hud-name" style="font-family:'Orbitron';">OPERATOR</h3>
-        <p id="hud-role" style="color:#38bdf8; font-size:12px;">ROOKIE</p>
-        <div class="bar"><div id="hp-fill" class="fill"></div></div>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
-
-    <script>
-        const socket = io();
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-
-        let myId = null, gameState = {}, camera = { x: 0, y: 0 };
-        const inputs = { left: false, right: false, up: false, aimAngle: 0 };
-
-        function enterArena() {
-            socket.emit('joinGame', {
-                name: document.getElementById('username').value,
-                adminKey: document.getElementById('secretKey').value
-            });
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('intel-banner').style.display = 'block';
-            document.getElementById('hud-player').style.display = 'block';
+// BANCO DE EVENTOS ASIMÉTRICOS (Progresión lingüística)
+const EVENT_POOL = [
+    {
+        msg: "DANGER: The central bridge will collapse in 5 seconds!",
+        action: () => {
+            const bridge = PLATFORMS.find(p => p.id === 'plat_mid');
+            if (bridge) bridge.active = false;
+            setTimeout(() => { if (bridge) bridge.active = true; }, 7000);
         }
+    },
+    {
+        msg: "INFO: Heavy Weapon Drop incoming on the Western Platform!",
+        action: () => {
+            BULLETS.push({ x: 600, y: 1050, vx: 0, vy: 0, damage: 80, life: 300, type: 'drop' });
+        }
+    },
+    {
+        msg: "WARNING: High Voltage on Eastern floor! Jump now!",
+        action: () => {
+            Object.values(PLAYERS).forEach(p => {
+                if (p.x > 2500 && p.onGround) p.hp -= 35;
+            });
+        }
+    }
+];
 
-        socket.on('registered', d => { myId = d.id; });
-        socket.on('stateUpdate', d => {
-            gameState = d;
-            let me = d.players[myId];
-            if (me) {
-                document.getElementById('hud-name').innerText = me.name;
-                document.getElementById('hud-role').innerText = me.pRole;
-                document.getElementById('hud-role').style.color = me.color;
-                document.getElementById('hp-fill').style.width = Math.max(0, (me.hp / me.maxHp)*100) + '%';
+function checkCollision(r1, r2) {
+    return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
+           r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
+}
 
-                // Mostrar la Intel Asimétrica Táctica
-                if (d.notices && d.notices[myId]) {
-                    const banner = document.getElementById('intel-text');
-                    banner.innerText = d.notices[myId].text;
-                    banner.style.color = d.notices[myId].color;
+// Bucle de Eventos Competitivos Tácticos (Cada 15 segundos)
+setInterval(() => {
+    if (Object.keys(PLAYERS).length === 0) return;
+
+    const currentEvent = EVENT_POOL[Math.floor(Math.random() * EVENT_POOL.length)];
+    const pKeys = Object.keys(PLAYERS);
+    
+    // Asimetría: Solo algunos jugadores reciben la advertencia real
+    const luckyPlayerId = pKeys[Math.floor(Math.random() * pKeys.length)];
+    
+    pKeys.forEach(id => {
+        if (id === luckyPlayerId) {
+            TACTICAL_NOTICES[id] = { text: `📡 [INTEL]: ${currentEvent.msg}`, color: '#38bdf8' };
+        } else {
+            TACTICAL_NOTICES[id] = { text: "📡 [INTEL]: Static noise... Radio signal lost.", color: '#64748b' };
+        }
+    });
+
+    // Ejecutar el evento en el mundo después de 5 segundos
+    setTimeout(() => {
+        currentEvent.action();
+        io.emit('chatMessage', { sender: "SYSTEM", text: "⚠️ TACTICAL EVENT EXECUTED!", type: 'alert' });
+    }, 5000);
+
+}, 15000);
+
+io.on('connection', (socket) => {
+    socket.on('joinGame', (data) => {
+        const username = data.name || "Operator";
+        const pass = data.adminKey ? data.adminKey.trim() : "";
+        const lowerName = username.trim().toLowerCase();
+
+        // VALIDACIÓN RIGUROSA DEL NINJA MEDIANTE SU CLAVE
+        let isNinja = (pass === NINJA_SECRET_KEY);
+        let isProfe = (lowerName === "profe");
+        let isWolfcute = (lowerName === "wolfcute");
+
+        let pRole = 'ROOKIE';
+        let color = '#10b981';
+
+        if (isNinja) { pRole = 'NINJA (SHADOW)'; color = '#a855f7'; }
+        else if (isProfe) { pRole = 'PROFE (MENTOR)'; color = '#38bdf8'; }
+        else if (isWolfcute) { pRole = 'WOLFCUTE (BEAST)'; color = '#ec4899'; }
+
+        PLAYERS[socket.id] = {
+            id: socket.id, name: username, pRole, color,
+            isNinja, isProfe, isWolfcute,
+            x: Math.random() * 1000 + 500, y: 1000,
+            w: 36, h: 54, vx: 0, vy: 0, aimAngle: 0,
+            hp: isNinja ? 140 : 100, maxHp: isNinja ? 140 : 100,
+            stamina: 100, dashCharges: isNinja ? 3 : 1,
+            abilityCD: 0, onGround: false, kills: 0
+        };
+
+        socket.emit('registered', { id: socket.id, platforms: PLATFORMS });
+        io.emit('chatMessage', { sender: "SYSTEM", text: `⚔️ ${username} joined as [${pRole}]`, type: 'system' });
+    });
+
+    socket.on('playerInput', (data) => {
+        const p = PLAYERS[socket.id];
+        if (!p || p.hp <= 0) return;
+
+        p.aimAngle = data.aimAngle || 0;
+        let spd = 1.5;
+        let maxSpd = 8;
+
+        if (data.left && p.vx > -maxSpd) p.vx -= spd;
+        if (data.right && p.vx < maxSpd) p.vx += spd;
+        if (data.up && p.onGround) { p.vy = -18; p.onGround = false; }
+    });
+
+    // SISTEMA DE HABILIDADES Y BALANCE DEL NINJA
+    socket.on('useAbilityTrigger', () => {
+        const p = PLAYERS[socket.id];
+        if (!p || p.hp <= 0 || p.abilityCD > 0) return;
+
+        let angle = p.aimAngle;
+
+        // 🥷 NINJA: ZIP -> AIR DASH (Consume Cargas)
+        if (p.isNinja) {
+            if (p.dashCharges > 0) {
+                p.vx = Math.cos(angle) * 32;
+                p.vy = Math.sin(angle) * 32;
+                p.dashCharges--;
+                p.abilityCD = 20; // CD corto entre dashes
+                
+                // Regenerar carga cada 4 segundos
+                setTimeout(() => { if (p.dashCharges < 3) p.dashCharges++; }, 4000);
+            }
+        } 
+        // 📚 PROFE: MENTOR VISION (Traduce la última Intel pero revela ubicación)
+        else if (p.isProfe) {
+            let myNotice = TACTICAL_NOTICES[p.id];
+            if (myNotice) {
+                myNotice.text += " [TRANSLATED: ¡Peligro o Ventaja inminente!]";
+                myNotice.color = "#fcd34d";
+            }
+            // Muestra posición a los enemigos por breves segundos (Riesgo/Recompensa)
+            io.emit('revealProfe', { x: p.x, y: p.y });
+            p.abilityCD = 200;
+        }
+    });
+
+    socket.on('shoot', () => {
+        const p = PLAYERS[socket.id];
+        if (!p || p.hp <= 0) return;
+        BULLETS.push({ ownerId: socket.id, x: p.x + p.w/2, y: p.y + p.h/3, vx: Math.cos(p.aimAngle)*24, vy: Math.sin(p.aimAngle)*24, damage: 20, life: 60 });
+    });
+
+    socket.on('disconnect', () => delete PLAYERS[socket.id]);
+});
+
+// Bucle Principal de Física 60 FPS
+setInterval(() => {
+    Object.values(PLAYERS).forEach(p => {
+        if (p.hp <= 0) return;
+
+        if (p.abilityCD > 0) p.abilityCD--;
+        p.vy += 0.8;
+        p.vx *= p.onGround ? 0.85 : 0.95;
+        p.x += p.vx; p.y += p.vy;
+        p.onGround = false;
+
+        // Colisión con Plataformas Dinámicas
+        PLATFORMS.forEach(plat => {
+            if (plat.active && checkCollision(p, plat)) {
+                if (p.vy > 0 && p.y + p.h - p.vy <= plat.y) {
+                    p.y = plat.y - p.h; p.vy = 0; p.onGround = true;
                 }
             }
         });
+    });
 
-        window.addEventListener('keydown', e => { if(e.code==='KeyA') inputs.left=true; if(e.code==='KeyD') inputs.right=true; if(e.code==='KeyW'||e.code==='Space') inputs.up=true; });
-        window.addEventListener('keyup', e => { if(e.code==='KeyA') inputs.left=false; if(e.code==='KeyD') inputs.right=false; if(e.code==='KeyW'||e.code==='Space') inputs.up=false; });
-        window.addEventListener('mousemove', e => { if(gameState.players && gameState.players[myId]) inputs.aimAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2); });
-        window.addEventListener('mousedown', e => { if(e.button===0) socket.emit('shoot'); if(e.button===2) socket.emit('useAbilityTrigger'); });
-        window.addEventListener('contextmenu', e => e.preventDefault());
-
-        setInterval(() => socket.emit('playerInput', inputs), 1000/60);
-
-        function draw() {
-            requestAnimationFrame(draw);
-            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            let me = (gameState.players || {})[myId];
-            if (me) {
-                camera.x += (me.x + me.w/2 - canvas.width/2 - camera.x) * 0.1;
-                camera.y += (me.y + me.h/2 - canvas.height/2 - camera.y) * 0.1;
+    // Balas
+    BULLETS.forEach((b, i) => {
+        b.x += b.vx; b.y += b.vy; b.life--;
+        Object.values(PLAYERS).forEach(p => {
+            if (p.id !== b.ownerId && checkCollision({x: b.x-6, y: b.y-6, w: 12, h: 12}, p)) {
+                p.hp -= b.damage; b.life = 0;
             }
+        });
+        if (b.life <= 0) BULLETS.splice(i, 1);
+    });
 
-            ctx.save(); ctx.translate(-camera.x, -camera.y);
+    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS, platforms: PLATFORMS, notices: TACTICAL_NOTICES });
+}, 1000 / 60);
 
-            // Dibujar Plataformas Dinámicas
-            (gameState.platforms || []).forEach(p => {
-                if (p.active) {
-                    ctx.fillStyle = p.type === 'bridge' ? '#f59e0b' : '#1e293b';
-                    ctx.fillRect(p.x, p.y, p.w, p.h);
-                    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1;
-                    ctx.strokeRect(p.x, p.y, p.w, p.h);
-                }
-            });
-
-            // Dibujar Operadores / Jugadores
-            Object.values(gameState.players || {}).forEach(p => {
-                if (p.hp > 0) {
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(p.x, p.y, p.w, p.h);
-
-                    // Indicador de Cargas de Ninja (Si es Ninja)
-                    if (p.isNinja) {
-                        ctx.fillStyle = '#a855f7';
-                        for(let i=0; i<p.dashCharges; i++) {
-                            ctx.beginPath(); ctx.arc(p.x + (i*10) + 8, p.y - 10, 3, 0, Math.PI*2); ctx.fill();
-                        }
-                    }
-
-                    ctx.fillStyle = '#fff'; ctx.font = "12px 'Orbitron'"; ctx.textAlign="center";
-                    ctx.fillText(p.name, p.x + p.w/2, p.y - 18);
-                }
-            });
-
-            // Proyectiles Tácticos
-            (gameState.bullets || []).forEach(b => {
-                ctx.fillStyle = b.type === 'drop' ? '#f59e0b' : '#38bdf8';
-                ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill();
-            });
-
-            ctx.restore();
-        }
-        draw();
-    </script>
-</body>
-</html>
+http.listen(3000, () => console.log("🎮 LAST WORD: WAR OF WORDS running on port 3000"));
