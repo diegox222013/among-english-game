@@ -53,9 +53,15 @@ io.on('connection', (socket) => {
             isAdmin = true;
         }
 
+        // BLOQUEO DE GRAPPLE PARA NO-ADMINS
+        let pSkill = data.skill || 'vines';
+        if (pSkill === 'grapple' && !isAdmin) {
+            pSkill = 'vines'; // Redirige a enredaderas si intenta usar grapple sin ser admin
+        }
+
         PLAYERS[socket.id] = {
             id: socket.id, name: username, classType: pClass, isAdmin: isAdmin,
-            weapon: data.weapon || 'rifle', skill: data.skill || 'grapple',
+            weapon: data.weapon || 'rifle', skill: pSkill,
             x: Math.random() * 3000 + 500, y: 300,
             w: 32, h: 50, vx: 0, vy: 0, aimAngle: 0,
             hp: pClass === 'NINJA' ? 140 : 100,
@@ -69,7 +75,6 @@ io.on('connection', (socket) => {
         io.emit('chatMessage', { sender: "SISTEMA", text: `👉 ${username} ha entrado a la arena.`, type: 'system' });
     });
 
-    // --- NUEVO: SISTEMA DE CHAT ---
     socket.on('sendChat', (msg) => {
         const p = PLAYERS[socket.id];
         if (p && msg.trim().length > 0) {
@@ -94,7 +99,8 @@ io.on('connection', (socket) => {
             p.onGround = false;
         }
 
-        if (data.holdingRightClick && p.skill === 'grapple' && data.targetPoint) {
+        // VALIDACIÓN DE GRAPPLE: SOLO SI ES ADMIN
+        if (data.holdingRightClick && p.skill === 'grapple' && p.isAdmin && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
                 p.grapple.x = data.targetPoint.x;
