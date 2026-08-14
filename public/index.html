@@ -1,221 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Among Us - English Edition</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 12px;
-    }
-    .card {
-      background: #1e293b;
-      padding: 16px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-      width: 100%;
-      max-width: 480px;
-      margin-bottom: 15px;
-      text-align: center;
-    }
-    input, button {
-      padding: 14px 18px;
-      margin: 6px 0;
-      border-radius: 8px;
-      border: none;
-      font-size: 16px;
-      width: 100%;
-    }
-    input { background: #0f172a; color: white; border: 1px solid #334155; }
-    button { background-color: #3b82f6; color: white; cursor: pointer; font-weight: bold; }
-    .emergency-btn { background-color: #ef4444; margin-top: 10px; }
-    .vote-btn { background-color: #f59e0b; margin: 4px 0; }
-    .hidden { display: none; }
-    .role-badge { font-size: 18px; font-weight: bold; padding: 4px 8px; border-radius: 5px; }
-    .impostor { color: #f87171; }
-    .crewmate { color: #60a5fa; }
-    .opt-btn { background: #334155; color: white; text-align: left; }
-    .task-log {
-      background: #0f172a;
-      padding: 10px;
-      border-radius: 8px;
-      text-align: left;
-      margin: 10px 0;
-      font-size: 14px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>ULTRA BUFFED ARENA - DIEGOX222013 vs PROFE</title>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Impact', sans-serif; text-align: center; margin: 0; overflow: hidden; }
+        #login-screen { position: absolute; inset: 0; background: radial-gradient(circle, #1e1b4b, #000); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+        input, button { padding: 15px 25px; font-size: 22px; margin: 10px; border-radius: 8px; border: none; font-family: inherit; }
+        input { background: #0f172a; color: #22c55e; border: 2px solid #22c55e; text-align: center; }
+        button { background: #ef4444; color: #fff; cursor: pointer; text-shadow: 0 0 10px #000; box-shadow: 0 0 20px #ef4444; }
+        button:hover { transform: scale(1.1); }
+        canvas { background: #020617; display: block; }
+        #hud { position: absolute; top: 15px; left: 15px; pointer-events: none; font-size: 18px; text-align: left; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; border: 2px solid #38bdf8; text-shadow: 0 0 5px #38bdf8; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-  <h1>🚀 Among Us: English Quest</h1>
+<div id="login-screen">
+    <h1 style="font-size: 3rem; color: #f59e0b; text-shadow: 0 0 20px #f59e0b;">🔥 ULTRA GOD-MODE ARENA 🔥</h1>
+    <input type="text" id="username" placeholder="PON TU NOMBRE..." maxlength="15">
+    <button onclick="login()">¡ENTRAR AL CAOS!</button>
+</div>
 
-  <!-- LOBBY -->
-  <div id="lobby-screen" class="card">
-    <h2>Join Room</h2>
-    <input type="text" id="username" placeholder="Enter Nickname">
-    <button onclick="joinGame()">Join Game</button>
-    
-    <h3>Players in Lobby:</h3>
-    <ul id="player-list" style="list-style: none; padding: 0;"></ul>
-    <button id="start-btn" onclick="startGame()" style="display:none; background-color: #22c55e;">Start Game 🚀</button>
-  </div>
+<div id="hud">Cargando Modo Dios...</div>
+<canvas id="gameCanvas"></canvas>
 
-  <!-- TASKS / GAMEPLAY -->
-  <div id="game-screen" class="card hidden">
-    <div>Role: <span id="role-display" class="role-badge"></span> | Tasks: <span id="my-tasks" style="color: #4ade80;">0</span></div>
-    <hr style="border-color: #334155; margin: 12px 0;">
-
-    <div id="task-box">
-      <h3 id="task-question">Loading task...</h3>
-      <div id="task-options"></div>
-      <div id="feedback" style="font-weight: bold; margin-top: 10px;"></div>
-    </div>
-
-    <button class="emergency-btn" onclick="triggerEmergency()">🚨 Emergency Meeting</button>
-  </div>
-
-  <!-- DISCUSSION & DEDUCTION SCREEN -->
-  <div id="discussion-screen" class="card hidden">
-    <h2 style="color: #ef4444;">🚨 EMERGENCY MEETING 🚨</h2>
-    <p>Check the <strong>Task Log</strong> below. Who isn't completing English tasks?</p>
-    
-    <!-- REGISTRO DE DEDUCCIÓN -->
-    <div id="task-log-box" class="task-log"></div>
-
-    <h3>Vote out the suspect:</h3>
-    <div id="voting-list"></div>
-  </div>
-
-  <!-- EJECTION RESULT -->
-  <div id="eject-screen" class="card hidden">
-    <div id="eject-text" style="font-size: 22px; font-weight: bold; padding: 20px;"></div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
+<script>
     const socket = io();
-    let currentQuestionObj = null;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-    function joinGame() {
-      const name = document.getElementById('username').value.trim();
-      if (name) {
-        socket.emit('joinGame', name);
-        document.getElementById('start-btn').style.display = 'block';
-      }
-    }
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    function startGame() { socket.emit('startGame'); }
-    function triggerEmergency() { socket.emit('callEmergency'); }
+    let myId = null;
+    let gameState = { players: {}, bullets: [] };
+    const inputs = { left: false, right: false, up: false };
+    let mouse = { x: 0, y: 0 };
 
-    socket.on('updatePlayers', (players) => {
-      const list = document.getElementById('player-list');
-      list.innerHTML = '';
-      Object.values(players).forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = `👨‍🚀 ${p.name}`;
-        list.appendChild(li);
-      });
-    });
-
-    socket.on('gameStarted', (data) => {
-      document.getElementById('lobby-screen').classList.add('hidden');
-      document.getElementById('discussion-screen').classList.add('hidden');
-      document.getElementById('eject-screen').classList.add('hidden');
-      document.getElementById('game-screen').classList.remove('hidden');
-
-      const me = data.players[socket.id];
-      const roleElem = document.getElementById('role-display');
-      roleElem.textContent = me.role;
-      roleElem.className = `role-badge ${me.role.toLowerCase()}`;
-      document.getElementById('my-tasks').textContent = '0';
-
-      loadTask(data.question);
-    });
-
-    function loadTask(q) {
-      currentQuestionObj = q;
-      document.getElementById('task-question').textContent = q.question;
-      const optContainer = document.getElementById('task-options');
-      optContainer.innerHTML = '';
-
-      q.options.forEach((opt, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'opt-btn';
-        btn.textContent = opt;
-        btn.onclick = () => {
-          socket.emit('submitAnswer', { questionText: currentQuestionObj.question, answerIndex: idx });
-        };
-        optContainer.appendChild(btn);
-      });
-    }
-
-    socket.on('taskResult', (data) => {
-      const feedback = document.getElementById('feedback');
-      feedback.style.color = data.correct ? '#4ade80' : '#f87171';
-      feedback.textContent = data.correct ? '✅ Correct task!' : '❌ Wrong answer!';
-      
-      document.getElementById('my-tasks').textContent = data.tasksDone;
-
-      setTimeout(() => {
-        feedback.textContent = '';
-        loadTask(data.nextQuestion);
-      }, 500);
-    });
-
-    // PANTALLA DE DISCUSIÓN CON PRUEBAS REALES
-    socket.on('startDiscussion', (data) => {
-      document.getElementById('game-screen').classList.add('hidden');
-      document.getElementById('discussion-screen').classList.remove('hidden');
-
-      // MOSTRAR TAREAS REALES DE CADA UNO (Task Log)
-      const logBox = document.getElementById('task-log-box');
-      logBox.innerHTML = '<strong>📊 Task Completion Log:</strong><br>';
-      
-      Object.values(data.players).forEach(p => {
-        logBox.innerHTML += `👨‍🚀 <strong>${p.name}</strong>: ${p.completedTasks} English Tasks Done<br>`;
-      });
-
-      // LISTA DE VOTACIÓN
-      const container = document.getElementById('voting-list');
-      container.innerHTML = '';
-
-      Object.values(data.players).forEach(p => {
-        if (p.isAlive) {
-          const btn = document.createElement('button');
-          btn.className = 'vote-btn';
-          btn.textContent = `Vote ${p.name}`;
-          btn.onclick = () => {
-            socket.emit('castVote', p.id);
-            container.innerHTML = '<p>Vote registered! Waiting for others...</p>';
-          };
-          container.appendChild(btn);
+    function login() {
+        const name = document.getElementById('username').value;
+        if (name) {
+            socket.emit('joinGame', name);
+            document.getElementById('login-screen').style.display = 'none';
         }
-      });
+    }
+
+    socket.on('registered', data => myId = data.id);
+    socket.on('stateUpdate', data => gameState = data);
+
+    window.addEventListener('keydown', e => {
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.left = true;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.right = true;
+        if (e.code === 'KeyW' || e.code === 'ArrowUp') inputs.up = true;
     });
 
-    socket.on('ejectionResult', (data) => {
-      document.getElementById('discussion-screen').classList.add('hidden');
-      document.getElementById('eject-screen').classList.remove('hidden');
-
-      const ejectText = document.getElementById('eject-text');
-      if (data.isImpostor) {
-        ejectText.style.color = '#4ade80';
-        ejectText.textContent = `🎉 ${data.ejectedName} WAS the Impostor! CREWMATES WIN!`;
-      } else {
-        ejectText.style.color = '#f87171';
-        ejectText.textContent = `💀 ${data.ejectedName} was NOT the Impostor...`;
-      }
+    window.addEventListener('keyup', e => {
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.left = false;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.right = false;
+        if (e.code === 'KeyW' || e.code === 'ArrowUp') inputs.up = false;
     });
 
-    socket.on('errorMsg', (msg) => alert(msg));
-  </script>
+    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+    window.addEventListener('mousedown', e => {
+        let me = gameState.players[myId];
+        if (!me) return;
+
+        let camX = me.x - canvas.width / 2;
+        let camY = me.y - canvas.height / 2;
+        let worldMouseX = mouse.x + camX;
+        let worldMouseY = mouse.y + camY;
+
+        if (e.button === 0) {
+            let angle = Math.atan2(worldMouseY - me.y, worldMouseX - me.x);
+            socket.emit('shoot', angle);
+        } else if (e.button === 2) {
+            socket.emit('useAbility', { x: worldMouseX, y: worldMouseY });
+        }
+    });
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
+    setInterval(() => socket.emit('playerInput', inputs), 1000 / 60);
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let me = gameState.players[myId];
+        let camX = me ? me.x - canvas.width / 2 : 0;
+        let camY = me ? me.y - canvas.height / 2 : 0;
+
+        ctx.save();
+        ctx.translate(-camX, -camY);
+
+        // Borde Cyber del Mapa
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 10;
+        ctx.strokeRect(0, 0, 2880, 1000);
+
+        // Suelo Lava/Cyber
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(0, 960, 2880, 40);
+
+        // Renderizar Jugadores
+        Object.values(gameState.players).forEach(p => {
+            if (p.hp <= 0) return;
+
+            // Aura por Clase
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = p.classType === 'NINJA' ? '#00f0ff' : (p.classType === 'PROFE' ? '#a855f7' : '#22c55e');
+
+            ctx.fillStyle = p.classType === 'NINJA' ? '#38bdf8' : (p.classType === 'PROFE' ? '#a855f7' : '#22c55e');
+            ctx.fillRect(p.x - 15, p.y - 30, 30, 50);
+
+            // Barra de vida gigante
+            ctx.fillStyle = '#111';
+            ctx.fillRect(p.x - 40, p.y - 50, 80, 10);
+            ctx.fillStyle = ctx.shadowColor;
+            ctx.fillRect(p.x - 40, p.y - 50, (p.hp / p.maxHp) * 80, 10);
+
+            // Nombres
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Impact';
+            ctx.fillText(`${p.name} [${p.classType}]`, p.x - 35, p.y - 60);
+        });
+
+        // Balas / Rayos
+        gameState.bullets.forEach(b => {
+            ctx.shadowBlur = 15;
+            if (b.isLaser) {
+                ctx.shadowColor = '#00f0ff';
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(b.x - 5, b.y - 5, 12, 12);
+            } else if (b.isNuke) {
+                ctx.shadowColor = '#a855f7';
+                ctx.fillStyle = '#c084fc';
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 25, 0, Math.PI*2); // Proyectil gigante
+                ctx.fill();
+            } else {
+                ctx.shadowColor = '#f59e0b';
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(b.x, b.y, 10, 10);
+            }
+        });
+
+        ctx.restore();
+
+        // HUD Local
+        if (me) {
+            document.getElementById('hud').innerHTML = 
+                `<b style="color:#f59e0b;">GOD-PLAYER:</b> ${me.name}<br>` +
+                `<b style="color:#38bdf8;">ROL:</b> ${me.classType}<br>` +
+                `<b style="color:#22c55e;">VIDA:</b> ${me.hp} / ${me.maxHp}<br>` +
+                `<b style="color:#ef4444;">SKILL [CLIC DER]:</b> ${me.abilityCD === 0 ? '⚡¡LISTA!⚡' : Math.ceil(me.abilityCD/60)+'s'}`;
+        }
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
 </body>
 </html>
