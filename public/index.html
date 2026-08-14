@@ -8,7 +8,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        /* --- LOBBY MULTIDISPOSITIVO --- */
+        /* LOBBY & OVERLAYS */
         #main-lobby { position: absolute; inset: 0; display: flex; flex-direction: row; z-index: 20; }
         @media (max-width: 768px) { #main-lobby { flex-direction: column; } }
 
@@ -27,57 +27,55 @@
 
         @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(15px); } }
 
-        /* --- OVERLAYS --- */
         .overlay-screen {
             position: absolute; inset: 0; display: none; justify-content: center; align-items: center;
             background: rgba(2, 6, 23, 0.92); z-index: 30; backdrop-filter: blur(5px); padding: 15px;
         }
         .card {
             background: rgba(15, 23, 42, 0.95); border-radius: 16px; padding: 25px; width: 100%; max-width: 450px;
-            box-shadow: 0 0 30px rgba(52, 211, 153, 0.2); border: 2px solid #34d399; text-align: center;
+            box-shadow: 0 0 40px rgba(52, 211, 153, 0.3); border: 2px solid #34d399; text-align: center;
         }
         .card-tutorial { border-color: #818cf8; max-width: 600px; text-align: left; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { font-size: 11px; color: #a7f3d0; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
         input, select, button { padding: 10px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; outline: none; }
         input, select { background: #1e293b; color: #fff; border: 1px solid #475569; }
-        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background: #10b981; }
+        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.2s; }
+        button:hover { background: #10b981; transform: scale(1.02); }
         .btn-close { background: #ef4444; color: white; margin-top: 15px; }
 
-        /* --- HUD & CHAT --- */
+        /* HUD & CHAT */
         #hud {
             position: absolute; top: 15px; left: 15px; pointer-events: none; display: none;
             background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399; padding: 12px; border-radius: 12px; z-index: 10;
+            box-shadow: 0 0 20px rgba(52, 211, 153, 0.3);
         }
-        .hp-bar { background: #0f172a; height: 14px; width: 180px; border-radius: 8px; margin-top: 6px; overflow: hidden; border: 1px solid #334155; }
-        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.1s; }
+        .hp-bar { background: #0f172a; height: 16px; width: 200px; border-radius: 8px; margin-top: 6px; overflow: hidden; border: 1px solid #334155; }
+        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.1s; box-shadow: 0 0 10px #34d399; }
 
         #chat-container {
             position: absolute; bottom: 80px; left: 15px; width: 280px; display: none; z-index: 10;
             background: rgba(15, 23, 42, 0.8); border-radius: 12px; border: 1px solid #475569; backdrop-filter: blur(4px);
             flex-direction: column;
         }
-        #chat-messages { height: 140px; overflow-y: auto; padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+        #chat-messages { height: 140px; overflow-y: auto; padding: 8px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
         .msg-system { color: #fcd34d; font-style: italic; }
-        .msg-admin { color: #fbbf24; font-weight: bold; }
+        .msg-admin { color: #fbbf24; font-weight: bold; text-shadow: 0 0 5px #fbbf24; }
         .msg-user { color: #34d399; font-weight: bold; }
-        #chat-input { border-none; border-top: 1px solid #475569; background: rgba(30, 41, 59, 0.9); padding: 8px; color: white; font-size: 12px; }
+        #chat-input { border-none; border-top: 1px solid #475569; background: rgba(30, 41, 59, 0.9); padding: 8px; color: white; font-size: 13px; }
 
-        /* --- CONTROLES MÓVILES (TOUCH) --- */
-        #mobile-controls {
-            position: absolute; inset: 0; pointer-events: none; z-index: 15; display: none;
-        }
+        /* MOBILE CONTROLS */
+        #mobile-controls { position: absolute; inset: 0; pointer-events: none; z-index: 15; display: none; }
         .touch-btn {
             position: absolute; pointer-events: auto; background: rgba(15, 23, 42, 0.6);
             border: 2px solid rgba(52, 211, 153, 0.5); border-radius: 50%; color: white;
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5); active { background: rgba(52, 211, 153, 0.4); }
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(3px);
         }
+        .touch-btn:active { background: rgba(52, 211, 153, 0.4); transform: scale(0.95); }
         #btn-left { bottom: 20px; left: 20px; width: 65px; height: 65px; }
         #btn-right { bottom: 20px; left: 95px; width: 65px; height: 65px; }
         #btn-jump { bottom: 95px; left: 60px; width: 65px; height: 65px; }
-
         #btn-shoot { bottom: 20px; right: 20px; width: 75px; height: 75px; background: rgba(239, 68, 68, 0.4); border-color: #ef4444; }
         #btn-skill { bottom: 105px; right: 25px; width: 60px; height: 60px; background: rgba(56, 189, 248, 0.4); border-color: #38bdf8; }
         #btn-toggle-chat { top: 15px; right: 15px; width: 45px; height: 45px; font-size: 18px; border-radius: 10px; }
@@ -88,32 +86,26 @@
 </head>
 <body>
 
-    <!-- LOBBY PRINCIPAL -->
     <div id="main-lobby">
         <div class="lobby-half play-side" onclick="showScreen('config-screen')">
-            <div class="lobby-title play-title">ENTRAR AL CAMPO</div>
-            <div class="huge-arrow">⬇️</div>
-            <h2 style="color: #a7f3d0;">¡JUGAR AHORA!</h2>
+            <div class="lobby-title play-title">ENTRAR AL CAMPO</div><div class="huge-arrow">⬇️</div><h2 style="color: #a7f3d0;">¡JUGAR AHORA!</h2>
         </div>
         <div class="lobby-half tutorial-side" onclick="showScreen('tutorial-screen')">
-            <div class="lobby-title tutorial-title">ENTRENAMIENTO</div>
-            <div class="huge-arrow">⬇️</div>
-            <h2 style="color: #c7d2fe;">VER TUTORIAL</h2>
+            <div class="lobby-title tutorial-title">ENTRENAMIENTO</div><div class="huge-arrow">⬇️</div><h2 style="color: #c7d2fe;">VER TUTORIAL</h2>
         </div>
     </div>
 
-    <!-- CONFIGURACIÓN DE JUGADOR -->
     <div id="config-screen" class="overlay-screen">
         <div class="card">
-            <h2 style="color: #34d399; margin-bottom: 15px;">CONFIGURA TU GUERRERO</h2>
+            <h2 style="color: #34d399; margin-bottom: 15px; text-shadow: 0 0 10px #34d399;">CONFIGURA TU GUERRERO</h2>
             <div class="form-group"><label>Nombre:</label><input type="text" id="username" placeholder="Tu Nombre" maxlength="12"></div>
-            <div class="form-group"><label>🔑 Clave Admin (Opcional):</label><input type="password" id="adminKey" placeholder="Desbloquea el Grapple"></div>
+            <div class="form-group"><label>🔑 Clave Admin:</label><input type="password" id="adminKey" placeholder="Opcional"></div>
             <div class="form-group">
                 <label>Arma:</label>
                 <select id="weapon-select">
-                    <option value="rifle">Rifle (Rápido)</option>
-                    <option value="shotgun">Escopeta (Ráfaga)</option>
-                    <option value="sniper">Sniper (Distancia)</option>
+                    <option value="rifle">Rifle de Asalto</option>
+                    <option value="shotgun">Escopeta</option>
+                    <option value="sniper">Rifle Francotirador</option>
                 </select>
             </div>
             <div class="form-group">
@@ -122,29 +114,27 @@
                     <option value="vines">🌿 Trampa de Enredaderas</option>
                     <option value="tornado">🍃 Salto de Tornado</option>
                     <option value="slam">🪨 Pisotón Destructor</option>
-                    <option value="grapple">🪝 Grapple Spiderman (SOLO ADMIN)</option>
+                    <option value="grapple">🪝 Telaraña Admin</option>
                 </select>
             </div>
-            <button onclick="startGame()">DESPLEGAR EN ARENA</button>
+            <button onclick="startGame()">DESPLEGAR</button>
             <button class="btn-close" onclick="showScreen('main')">VOLVER</button>
         </div>
     </div>
 
-    <!-- TUTORIAL -->
     <div id="tutorial-screen" class="overlay-screen">
         <div class="card card-tutorial">
-            <h2 style="color: #818cf8; margin-bottom: 12px; text-align: center;">📖 CONTROLES DEL JUEGO</h2>
+            <h2 style="color: #818cf8; margin-bottom: 12px; text-align: center;">📖 CONTROLES Y FÍSICAS</h2>
             <ul style="color: #e2e8f0; line-height: 1.6; margin-left: 20px; font-size: 14px;">
-                <li><b>💻 En PC:</b> Teclas <kbd>A</kbd>/<kbd>D</kbd> para moverte, <kbd>W</kbd>/<kbd>Espacio</kbd> para saltar. Clic Izquierdo para disparar y Clic Derecho para usar Habilidad.</li>
-                <li><b>📱 En Móvil:</b> Usa los botones táctiles en pantalla para desplazarte, saltar y disparar.</li>
-                <li><b>🪝 Grapple Exclusivo:</b> El gancho táctico es exclusivo para Administradores con clave.</li>
-                <li><b>💬 Chat:</b> Habla con otros jugadores en tiempo real durante la partida.</li>
+                <li><b>💻 En PC:</b> <kbd>A</kbd>/<kbd>D</kbd> Moverse. <kbd>W</kbd>/<kbd>Espacio</kbd> Saltar.</li>
+                <li><b>🖱️ Ratón:</b> Clic Izquierdo = Disparar. Clic Derecho = Habilidad.</li>
+                <li><b>🪝 Grapple (Admin):</b> Física real. Apunta, mantén clic derecho para engancharte y balancéate con la inercia (Spiderman).</li>
+                <li><b>📱 Móvil:</b> Controles táctiles en pantalla soportan multitoque.</li>
             </ul>
             <button class="btn-close" onclick="showScreen('main')">ENTENDIDO</button>
         </div>
     </div>
 
-    <!-- HUD Y CHAT -->
     <div id="hud">
         <div id="player-info">Conectando...</div>
         <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
@@ -155,7 +145,6 @@
         <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
     </div>
 
-    <!-- CONTROLES MÓVILES (BOTONES TOUCH) -->
     <div id="mobile-controls">
         <div id="btn-left" class="touch-btn">◀</div>
         <div id="btn-right" class="touch-btn">▶</div>
@@ -212,7 +201,6 @@
         // CHAT
         const chatMessages = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
-
         socket.on('chatMessage', data => {
             const msgEl = document.createElement('span');
             if (data.type === 'system') {
@@ -224,15 +212,12 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         });
 
-        // TECLADO PC
+        // INPUTS
         window.addEventListener('keydown', e => {
             if (!isPlaying) return;
             if (e.key === 'Enter') {
-                if (document.activeElement === chatInput) {
-                    socket.emit('sendChat', chatInput.value);
-                    chatInput.value = ''; chatInput.blur();
-                } else { chatInput.focus(); }
-                return;
+                if (document.activeElement === chatInput) { socket.emit('sendChat', chatInput.value); chatInput.value = ''; chatInput.blur(); } 
+                else { chatInput.focus(); } return;
             }
             if (document.activeElement === chatInput) return;
 
@@ -240,7 +225,6 @@
             if (e.code === 'KeyD') inputs.right = true;
             if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
         });
-
         window.addEventListener('keyup', e => {
             if (e.code === 'KeyA') inputs.left = false;
             if (e.code === 'KeyD') inputs.right = false;
@@ -251,42 +235,24 @@
         window.addEventListener('mousedown', e => {
             if (!isPlaying || document.activeElement === chatInput || isMobile) return;
             if (e.button === 0) socket.emit('shoot');
-            if (e.button === 2) {
-                inputs.holdingRightClick = true;
-                socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
-            }
+            if (e.button === 2) { inputs.holdingRightClick = true; socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint }); }
         });
         window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // CONTROLES MÓVILES (MULTITOUCH)
+        // MÓVIL
         function bindTouchBtn(id, onPress, onRelease) {
             const btn = document.getElementById(id);
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); });
             btn.addEventListener('touchend', (e) => { e.preventDefault(); if (onRelease) onRelease(); });
         }
-
         bindTouchBtn('btn-left', () => inputs.left = true, () => inputs.left = false);
         bindTouchBtn('btn-right', () => inputs.right = true, () => inputs.right = false);
         bindTouchBtn('btn-jump', () => inputs.up = true, () => inputs.up = false);
         bindTouchBtn('btn-shoot', () => socket.emit('shoot'));
-        bindTouchBtn('btn-skill', () => {
-            inputs.holdingRightClick = true;
-            socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
-        }, () => inputs.holdingRightClick = false);
-
-        document.getElementById('btn-toggle-chat').addEventListener('click', () => {
-            const chat = document.getElementById('chat-container');
-            chat.style.display = chat.style.display === 'none' ? 'flex' : 'none';
-        });
-
-        // Aim táctil al tocar pantalla
-        window.addEventListener('touchmove', e => {
-            if (e.touches.length > 0) {
-                mouse.x = e.touches[0].clientX;
-                mouse.y = e.touches[0].clientY;
-            }
-        });
+        bindTouchBtn('btn-skill', () => { inputs.holdingRightClick = true; socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint }); }, () => inputs.holdingRightClick = false);
+        document.getElementById('btn-toggle-chat').addEventListener('click', () => { const chat = document.getElementById('chat-container'); chat.style.display = chat.style.display === 'none' ? 'flex' : 'none'; });
+        window.addEventListener('touchmove', e => { if (e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }});
 
         setInterval(() => {
             if (!isPlaying) return;
@@ -298,7 +264,7 @@
             }
         }, 1000 / 60);
 
-        // GRÁFICOS
+        // GRÁFICOS MEJORADOS
         function drawGrid(ctx, camX, camY) {
             ctx.strokeStyle = "rgba(52, 211, 153, 0.05)"; ctx.lineWidth = 1;
             const size = 100;
@@ -313,9 +279,7 @@
         function draw() {
             if (!isPlaying) return requestAnimationFrame(draw);
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
             let me = gameState.players[myId];
-
             if (me) {
                 let targetCamX = me.x - canvas.width / 2;
                 let targetCamY = me.y - canvas.height / 2;
@@ -323,18 +287,23 @@
                 currentCamY += (targetCamY - currentCamY) * 0.1;
             }
 
+            // Fondo Degradado y Grid
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#020617');
+            bgGrad.addColorStop(1, '#064e3b');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             ctx.save();
             ctx.translate(-currentCamX, -currentCamY);
-
-            ctx.fillStyle = '#020617'; ctx.fillRect(currentCamX, currentCamY, canvas.width, canvas.height);
             drawGrid(ctx, currentCamX, currentCamY);
 
             // Plataformas
             platforms.forEach(plat => {
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 15;
                 if (plat.type === 'grass') {
                     ctx.shadowColor = '#065f46'; ctx.fillStyle = '#064e3b'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                    ctx.fillStyle = '#10b981'; ctx.fillRect(plat.x, plat.y, plat.w, 6);
+                    ctx.fillStyle = '#34d399'; ctx.fillRect(plat.x, plat.y, plat.w, 8); // Borde neón arriba
                 } else if (plat.type === 'wood' || plat.type === 'leaves') {
                     ctx.shadowColor = '#78350f'; ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#451a03'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
                 } else {
@@ -343,49 +312,74 @@
                 ctx.shadowBlur = 0;
             });
 
-            // Habilidades
-            (gameState.vines || []).forEach(v => { ctx.fillStyle = 'rgba(16, 185, 129, 0.7)'; ctx.fillRect(v.x, v.y, v.w, v.h); });
-            (gameState.tornados || []).forEach(t => { ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; ctx.fillRect(t.x, t.y, t.w, t.h); });
+            // Efectos Ambientales (Habilidades)
+            (gameState.vines || []).forEach(v => { ctx.shadowBlur=20; ctx.shadowColor='#10b981'; ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'; ctx.fillRect(v.x, v.y, v.w, v.h); ctx.shadowBlur=0; });
+            (gameState.tornados || []).forEach(t => { ctx.shadowBlur=20; ctx.shadowColor='#38bdf8'; ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.shadowBlur=0; });
 
             // Jugadores
             Object.values(gameState.players).forEach(p => {
                 if (p.hp > 0) {
+                    // Grapple Visual (Telaraña brillante)
                     if (p.grapple && p.grapple.active && p.isAdmin) {
-                        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
-                        ctx.beginPath(); ctx.moveTo(p.x + p.w/2, p.y + 10); ctx.lineTo(p.grapple.x, p.grapple.y); ctx.stroke();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
+                        ctx.lineWidth = 2.5;
+                        ctx.shadowColor = '#ffffff';
+                        ctx.shadowBlur = 15;
+                        ctx.beginPath(); 
+                        ctx.moveTo(p.x + p.w/2, p.y + 15); 
+                        ctx.lineTo(p.grapple.x, p.grapple.y); 
+                        ctx.stroke();
+                        ctx.shadowBlur = 0;
                     }
 
                     let isEnemy = (p.id !== myId);
                     let baseColor = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
                     if (isEnemy) baseColor = '#ef4444';
 
-                    ctx.shadowBlur = 12; ctx.shadowColor = baseColor;
+                    // Cuerpo del Jugador con Glow
+                    ctx.shadowBlur = 20; ctx.shadowColor = baseColor;
                     ctx.fillStyle = baseColor;
-                    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 5); ctx.fill();
+                    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
                     ctx.shadowBlur = 0;
 
+                    // Ojos (Rectángulos Redondeados)
                     let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
-                    ctx.fillStyle = '#fff'; ctx.fillRect(p.x + (dir > 0 ? 18 : 4), p.y + 10, 10, 6);
+                    let eyeW = 7, eyeH = 14;
+                    let eyeY = p.y + 10;
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#ffffff';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    // Ojo delantero
+                    ctx.roundRect(p.x + (dir > 0 ? 20 : 5), eyeY, eyeW, eyeH, 3);
+                    // Ojo trasero
+                    ctx.roundRect(p.x + (dir > 0 ? 10 : 15), eyeY, eyeW, eyeH, 3);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
 
+                    // Nombre
                     ctx.fillStyle = p.isAdmin ? '#fbbf24' : '#fff';
-                    ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
-                    ctx.fillText(p.name + (p.isAdmin ? ' 👑' : ''), p.x + p.w/2, p.y - 10);
+                    ctx.font = "bold 13px 'Segoe UI'"; ctx.textAlign = "center";
+                    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+                    ctx.fillText(p.name + (p.isAdmin ? ' 👑' : ''), p.x + p.w/2, p.y - 12);
+                    ctx.shadowBlur = 0;
                     ctx.textAlign = "left";
                 }
             });
 
-            // Proyectiles
+            // Proyectiles brillantes
             gameState.bullets.forEach(b => {
                 let color = b.damage > 30 ? '#ef4444' : '#38bdf8';
-                ctx.shadowBlur = 10; ctx.shadowColor = color; ctx.fillStyle = color;
-                ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+                ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
                 ctx.shadowBlur = 0;
             });
 
             ctx.restore();
 
             if (me) {
-                document.getElementById('player-info').innerHTML = `<b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} | Bajas: <b>${me.score}</b>`;
+                document.getElementById('player-info').innerHTML = `<b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} | Bajas: <b style="color:#fcd34d">${me.score}</b>`;
                 document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
             }
 
