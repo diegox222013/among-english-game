@@ -2,153 +2,42 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NATURE ARENA - ENGLISH CLASS EDITION</title>
+    <title>Nature Arena - Minigames & Special Roles</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        #main-lobby { position: absolute; inset: 0; display: flex; flex-direction: row; z-index: 20; }
-        @media (max-width: 768px) { #main-lobby { flex-direction: column; } }
+        #config-screen { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(2, 6, 23, 0.95); z-index: 30; }
+        .card { background: #0f172a; border-radius: 16px; padding: 25px; width: 350px; border: 2px solid #34d399; text-align: center; }
+        input, select, button { padding: 10px; margin-top: 10px; width: 100%; border-radius: 8px; border: none; font-weight: bold; }
+        input, select { background: #1e293b; color: white; }
+        button { background: #34d399; color: #020617; cursor: pointer; }
 
-        .lobby-half {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; transition: all 0.3s ease; position: relative; padding: 20px; text-align: center;
-        }
-        .lobby-half:hover { flex: 1.1; filter: brightness(1.2); }
-        .play-side { background: linear-gradient(135deg, #064e3b, #020617); border-right: 2px solid #34d399; }
-        .tutorial-side { background: linear-gradient(135deg, #1e1b4b, #020617); border-left: 2px solid #818cf8; }
-        
-        .huge-arrow { font-size: 60px; text-shadow: 0 0 20px rgba(255,255,255,0.5); animation: bounce 1s infinite alternate; margin: 15px; }
-        .lobby-title { font-size: 32px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .play-title { color: #34d399; text-shadow: 0 0 15px #10b981; }
-        .tutorial-title { color: #818cf8; text-shadow: 0 0 15px #4f46e5; }
-
-        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(15px); } }
-
-        .overlay-screen {
-            position: absolute; inset: 0; display: none; justify-content: center; align-items: center;
-            background: rgba(2, 6, 23, 0.92); z-index: 30; backdrop-filter: blur(5px); padding: 15px;
-        }
-        .card {
-            background: rgba(15, 23, 42, 0.95); border-radius: 16px; padding: 25px; width: 100%; max-width: 450px;
-            box-shadow: 0 0 40px rgba(52, 211, 153, 0.3); border: 2px solid #34d399; text-align: center;
-        }
-        .card-tutorial { border-color: #818cf8; max-width: 600px; text-align: left; }
-        .form-group { margin-bottom: 12px; text-align: left; }
-        label { font-size: 11px; color: #a7f3d0; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        input, select, button { padding: 10px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; outline: none; }
-        input, select { background: #1e293b; color: #fff; border: 1px solid #475569; }
-        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.2s; }
-        button:hover { background: #10b981; transform: scale(1.02); }
-        .btn-close { background: #ef4444; color: white; margin-top: 15px; }
-
-        #hud {
-            position: absolute; top: 15px; left: 15px; pointer-events: none; display: none;
-            background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399; padding: 12px; border-radius: 12px; z-index: 10;
-            box-shadow: 0 0 20px rgba(52, 211, 153, 0.3);
-        }
-        .hp-bar { background: #0f172a; height: 16px; width: 200px; border-radius: 8px; margin-top: 6px; overflow: hidden; border: 1px solid #334155; }
-        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.1s; box-shadow: 0 0 10px #34d399; }
-
-        #chat-container {
-            position: absolute; bottom: 80px; left: 15px; width: 280px; display: none; z-index: 10;
-            background: rgba(15, 23, 42, 0.8); border-radius: 12px; border: 1px solid #475569; backdrop-filter: blur(4px);
-            flex-direction: column;
-        }
-        #chat-messages { height: 140px; overflow-y: auto; padding: 8px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
-        .msg-system { color: #fcd34d; font-style: italic; }
-        .msg-admin { color: #fbbf24; font-weight: bold; text-shadow: 0 0 5px #fbbf24; }
-        .msg-user { color: #34d399; font-weight: bold; }
-        #chat-input { border: none; border-top: 1px solid #475569; background: rgba(30, 41, 59, 0.9); padding: 8px; color: white; font-size: 13px; }
-
-        #mobile-controls { position: absolute; inset: 0; pointer-events: none; z-index: 15; display: none; }
-        .touch-btn {
-            position: absolute; pointer-events: auto; background: rgba(15, 23, 42, 0.6);
-            border: 2px solid rgba(52, 211, 153, 0.5); border-radius: 50%; color: white;
-            display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(3px);
-        }
-        .touch-btn:active { background: rgba(52, 211, 153, 0.4); transform: scale(0.95); }
-        #btn-left { bottom: 20px; left: 20px; width: 65px; height: 65px; }
-        #btn-right { bottom: 20px; left: 95px; width: 65px; height: 65px; }
-        #btn-jump { bottom: 95px; left: 60px; width: 65px; height: 65px; }
-        #btn-shoot { bottom: 20px; right: 20px; width: 75px; height: 75px; background: rgba(239, 68, 68, 0.4); border-color: #ef4444; }
-        #btn-skill { bottom: 105px; right: 25px; width: 60px; height: 60px; background: rgba(56, 189, 248, 0.4); border-color: #38bdf8; }
-        #btn-toggle-chat { top: 15px; right: 15px; width: 45px; height: 45px; font-size: 18px; border-radius: 10px; }
-
+        #hud { position: absolute; top: 15px; left: 15px; background: rgba(15,23,42,0.8); padding: 12px; border-radius: 10px; display: none; }
+        #mission-hud { position: absolute; top: 15px; right: 15px; background: rgba(30, 27, 75, 0.9); border: 2px solid #818cf8; padding: 12px; border-radius: 10px; display: none; }
         canvas { display: none; }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-    <div id="main-lobby">
-        <div class="lobby-half play-side" onclick="showScreen('config-screen')">
-            <div class="lobby-title play-title">ENTRAR AL CAMPO</div><div class="huge-arrow">⬇️</div><h2 style="color: #a7f3d0;">¡JUGAR AHORA!</h2>
-        </div>
-        <div class="lobby-half tutorial-side" onclick="showScreen('tutorial-screen')">
-            <div class="lobby-title tutorial-title">ENTRENAMIENTO</div><div class="huge-arrow">⬇️</div><h2 style="color: #c7d2fe;">VER TUTORIAL</h2>
-        </div>
-    </div>
-
-    <div id="config-screen" class="overlay-screen">
+    <div id="config-screen">
         <div class="card">
-            <h2 style="color: #34d399; margin-bottom: 15px; text-shadow: 0 0 10px #34d399;">CONFIGURA TU GUERRERO</h2>
-            <div class="form-group"><label>Nombre (Prueba "profe"):</label><input type="text" id="username" placeholder="Tu Nombre" maxlength="12"></div>
-            <div class="form-group"><label>🔑 Clave Admin:</label><input type="password" id="adminKey" placeholder="Opcional"></div>
-            <div class="form-group">
-                <label>Arma:</label>
-                <select id="weapon-select">
-                    <option value="rifle">Rifle de Asalto</option>
-                    <option value="shotgun">Escopeta</option>
-                    <option value="sniper">Rifle Francotirador</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Habilidad:</label>
-                <select id="skill-select">
-                    <option value="vines">🌿 Trampa de Enredaderas</option>
-                    <option value="tornado">🍃 Salto de Tornado</option>
-                    <option value="slam">🪨 Pisotón Destructor</option>
-                    <option value="grapple">🪝 Telaraña Admin</option>
-                </select>
-            </div>
-            <button onclick="startGame()">DESPLEGAR</button>
-            <button class="btn-close" onclick="showScreen('main')">VOLVER</button>
+            <h2 style="color:#34d399;">NATURE ARENA</h2>
+            <p style="font-size:12px; color:#a7f3d0; margin-top:5px;">Nombres especiales: <b>profe</b>, <b>ninja</b>, <b>wolfcute</b></p>
+            <input type="text" id="username" placeholder="Tu Nickname">
+            <select id="mode-select" onchange="socket.emit('selectMode', this.value)">
+                <option value="PVP">⚔️ Modo PvP (Todos contra todos)</option>
+                <option value="MINIGAME">🔤 Minijuego Co-op (Spell Word)</option>
+            </select>
+            <button onclick="startGame()">ENTRAR</button>
         </div>
     </div>
 
-    <div id="tutorial-screen" class="overlay-screen">
-        <div class="card card-tutorial">
-            <h2 style="color: #818cf8; margin-bottom: 12px; text-align: center;">📖 CONTROLES Y SECRETOS</h2>
-            <ul style="color: #e2e8f0; line-height: 1.6; margin-left: 20px; font-size: 14px;">
-                <li><b>🎓 TRUCO PROFE:</b> Ponte el nombre <code>profe</code> para conseguir la Habilidad y Aura de Inglés con letras flotantes ABC.</li>
-                <li><b>💻 En PC:</b> <kbd>A</kbd>/<kbd>D</kbd> Moverse. <kbd>W</kbd>/<kbd>Espacio</kbd> Saltar.</li>
-                <li><b>🖱️ Ratón:</b> Clic Izquierdo = Disparar. Clic Derecho = Habilidad.</li>
-                <li><b>🪝 Grapple (Admin):</b> Pulsa Clic Derecho para engancharte y catapúltate con velocidad súper rápida.</li>
-            </ul>
-            <button class="btn-close" onclick="showScreen('main')">ENTENDIDO</button>
-        </div>
-    </div>
-
-    <div id="hud">
-        <div id="player-info">Conectando...</div>
-        <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
-    </div>
-
-    <div id="chat-container">
-        <div id="chat-messages"></div>
-        <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
-    </div>
-
-    <div id="mobile-controls">
-        <div id="btn-left" class="touch-btn">◀</div>
-        <div id="btn-right" class="touch-btn">▶</div>
-        <div id="btn-jump" class="touch-btn">▲</div>
-        <div id="btn-shoot" class="touch-btn">🔥</div>
-        <div id="btn-skill" class="touch-btn">⚡</div>
-        <div id="btn-toggle-chat" class="touch-btn">💬</div>
+    <div id="hud"><div id="player-info"></div></div>
+    <div id="mission-hud">
+        <h4 style="color:#818cf8">📜 MINIJUEGO: SPELL THE WORD</h4>
+        <p>Palabra: <b id="word-display" style="color:#fcd34d">ENG_ISH</b></p>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -157,275 +46,103 @@
         const socket = io();
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-        let myId = null;
-        let platforms = [];
-        let gameState = { players: {}, bullets: [], vines: [], tornados: [], auraParticles: [] };
-        const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
-        let mouse = { x: canvas.width/2, y: canvas.height/2 };
-        let currentCamX = 0; let currentCamY = 0;
-        let isPlaying = false;
-        let isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-        let colorHue = 0;
-
-        function showScreen(screen) {
-            document.getElementById('main-lobby').style.display = screen === 'main' ? 'flex' : 'none';
-            document.getElementById('config-screen').style.display = screen === 'config-screen' ? 'flex' : 'none';
-            document.getElementById('tutorial-screen').style.display = screen === 'tutorial-screen' ? 'flex' : 'none';
-        }
+        let myId = null, platforms = [], portal = {}, gameState = {};
+        const inputs = { left: false, right: false, up: false, aimAngle: 0 };
 
         function startGame() {
-            const name = document.getElementById('username').value || "Jugador";
-            const adminKey = document.getElementById('adminKey').value;
-            const weapon = document.getElementById('weapon-select').value;
-            const skill = document.getElementById('skill-select').value;
-
-            socket.emit('joinGame', { name, adminKey, weapon, skill });
-
+            socket.emit('joinGame', { name: document.getElementById('username').value });
             document.getElementById('config-screen').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
-            document.getElementById('chat-container').style.display = isMobile ? 'none' : 'flex';
-            if (isMobile) document.getElementById('mobile-controls').style.display = 'block';
             canvas.style.display = 'block';
-            isPlaying = true;
         }
 
-        socket.on('registered', data => { myId = data.id; platforms = data.platforms; });
-        socket.on('stateUpdate', data => gameState = data);
-
-        const chatMessages = document.getElementById('chat-messages');
-        const chatInput = document.getElementById('chat-input');
-        socket.on('chatMessage', data => {
-            const msgEl = document.createElement('span');
-            if (data.type === 'system') {
-                msgEl.className = 'msg-system'; msgEl.innerText = data.text;
-            } else {
-                msgEl.innerHTML = `<span class="${data.isAdmin ? 'msg-admin' : 'msg-user'}">[${data.sender}]</span>: ${data.text}`;
-            }
-            chatMessages.appendChild(msgEl);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        socket.on('registered', d => { myId = d.id; platforms = d.platforms; portal = d.portal; });
+        socket.on('stateUpdate', d => {
+            gameState = d;
+            document.getElementById('mission-hud').style.display = d.gameMode === 'MINIGAME' ? 'block' : 'none';
+            if(d.mission) document.getElementById('word-display').innerText = d.mission.currentWord;
         });
 
         window.addEventListener('keydown', e => {
-            if (!isPlaying) return;
-            if (e.key === 'Enter') {
-                if (document.activeElement === chatInput) { socket.emit('sendChat', chatInput.value); chatInput.value = ''; chatInput.blur(); } 
-                else { chatInput.focus(); } return;
-            }
-            if (document.activeElement === chatInput) return;
-
             if (e.code === 'KeyA') inputs.left = true;
             if (e.code === 'KeyD') inputs.right = true;
-            if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
+            if (e.code === 'KeyW') inputs.up = true;
         });
         window.addEventListener('keyup', e => {
             if (e.code === 'KeyA') inputs.left = false;
             if (e.code === 'KeyD') inputs.right = false;
-            if (e.code === 'KeyW' || e.code === 'Space') inputs.up = false;
+            if (e.code === 'KeyW') inputs.up = false;
         });
-
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousemove', e => {
+            let me = (gameState.players || {})[myId];
+            if (me) inputs.aimAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
+        });
         window.addEventListener('mousedown', e => {
-            if (!isPlaying || document.activeElement === chatInput || isMobile) return;
             if (e.button === 0) socket.emit('shoot');
-            if (e.button === 2) { inputs.holdingRightClick = true; socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint }); }
+            if (e.button === 2) socket.emit('useAbilityTrigger', { targetPoint: true });
         });
-        window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        function bindTouchBtn(id, onPress, onRelease) {
-            const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); });
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); if (onRelease) onRelease(); });
-        }
-        bindTouchBtn('btn-left', () => inputs.left = true, () => inputs.left = false);
-        bindTouchBtn('btn-right', () => inputs.right = true, () => inputs.right = false);
-        bindTouchBtn('btn-jump', () => inputs.up = true, () => inputs.up = false);
-        bindTouchBtn('btn-shoot', () => socket.emit('shoot'));
-        bindTouchBtn('btn-skill', () => { inputs.holdingRightClick = true; socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint }); }, () => inputs.holdingRightClick = false);
-        document.getElementById('btn-toggle-chat').addEventListener('click', () => { const chat = document.getElementById('chat-container'); chat.style.display = chat.style.display === 'none' ? 'flex' : 'none'; });
-        window.addEventListener('touchmove', e => { if (e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }});
-
-        setInterval(() => {
-            if (!isPlaying) return;
-            let me = gameState.players[myId];
-            if (me) {
-                inputs.aimAngle = Math.atan2((mouse.y + currentCamY) - (me.y + me.h/3), (mouse.x + currentCamX) - (me.x + me.w/2));
-                inputs.targetPoint = { x: mouse.x + currentCamX, y: mouse.y + currentCamY };
-                socket.emit('playerInput', inputs);
-            }
-        }, 1000 / 60);
-
-        function drawGrid(ctx, camX, camY) {
-            ctx.strokeStyle = "rgba(52, 211, 153, 0.05)"; ctx.lineWidth = 1;
-            const size = 100;
-            const startX = Math.floor(camX / size) * size;
-            const startY = Math.floor(camY / size) * size;
-            ctx.beginPath();
-            for (let x = startX; x < camX + canvas.width; x += size) { ctx.moveTo(x, camY); ctx.lineTo(x, camY + canvas.height); }
-            for (let y = startY; y < camY + canvas.height; y += size) { ctx.moveTo(camX, y); ctx.lineTo(camX + canvas.width, y); }
-            ctx.stroke();
-        }
+        setInterval(() => socket.emit('playerInput', inputs), 1000/60);
 
         function draw() {
-            if (!isPlaying) return requestAnimationFrame(draw);
+            requestAnimationFrame(draw);
+            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            colorHue = (colorHue + 2) % 360;
-            let auraColor = `hsl(${colorHue}, 100%, 60%)`;
+            let me = (gameState.players || {})[myId];
+            let camX = me ? me.x - canvas.width/2 : 0;
+            let camY = me ? me.y - canvas.height/2 : 0;
 
-            let me = gameState.players[myId];
-            if (me) {
-                let targetCamX = me.x - canvas.width / 2;
-                let targetCamY = me.y - canvas.height / 2;
-                currentCamX += (targetCamX - currentCamX) * 0.1;
-                currentCamY += (targetCamY - currentCamY) * 0.1;
-            }
-
-            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            bgGrad.addColorStop(0, '#020617');
-            bgGrad.addColorStop(1, '#064e3b');
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.save();
-            ctx.translate(-currentCamX, -currentCamY);
-            drawGrid(ctx, currentCamX, currentCamY);
-
-            // RENDERIZAR AURA (Partículas Neón o Letras ABC de Inglés)
-            (gameState.auraParticles || []).forEach(part => {
-                ctx.shadowBlur = 12;
-                if (part.type === 'english') {
-                    ctx.shadowColor = '#38bdf8';
-                    ctx.fillStyle = '#60a5fa';
-                    ctx.font = `bold ${Math.floor(part.size * 2.5)}px 'Segoe UI'`;
-                    ctx.fillText(part.text, part.x, part.y);
-                } else {
-                    ctx.shadowColor = auraColor;
-                    ctx.fillStyle = auraColor;
-                    ctx.beginPath();
-                    ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.shadowBlur = 0;
-            });
+            ctx.save(); ctx.translate(-camX, -camY);
 
             // Plataformas
-            platforms.forEach(plat => {
-                ctx.shadowBlur = 15;
-                if (plat.type === 'grass') {
-                    ctx.shadowColor = '#065f46'; ctx.fillStyle = '#064e3b'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                    ctx.fillStyle = '#34d399'; ctx.fillRect(plat.x, plat.y, plat.w, 8);
-                } else if (plat.type === 'wood' || plat.type === 'leaves') {
-                    ctx.shadowColor = '#78350f'; ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#451a03'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                } else {
-                    ctx.shadowColor = '#475569'; ctx.fillStyle = '#1e293b'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                }
-                ctx.shadowBlur = 0;
+            platforms.forEach(p => {
+                ctx.fillStyle = p.type === 'lobby_floor' ? '#312e81' : '#064e3b';
+                ctx.fillRect(p.x, p.y, p.w, p.h);
             });
 
-            // Habilidades de Terreno
-            (gameState.vines || []).forEach(v => { ctx.shadowBlur=20; ctx.shadowColor='#10b981'; ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'; ctx.fillRect(v.x, v.y, v.w, v.h); ctx.shadowBlur=0; });
-            (gameState.tornados || []).forEach(t => { ctx.shadowBlur=20; ctx.shadowColor='#38bdf8'; ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.shadowBlur=0; });
+            // Portal
+            if (portal.x) {
+                ctx.fillStyle = '#34d399'; ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
+            }
+
+            // Partículas de Aura Especiales
+            (gameState.auraParticles || []).forEach(p => {
+                if (p.type === 'text') {
+                    ctx.fillStyle = '#38bdf8'; ctx.font = "bold 14px 'Segoe UI'";
+                    ctx.fillText(p.text, p.x, p.y);
+                } else if (p.type === 'ninja') {
+                    ctx.fillStyle = '#a855f7'; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                }
+            });
+
+            // Letras del Minijuego
+            (gameState.missionItems || []).forEach(item => {
+                ctx.fillStyle = '#fbbf24'; ctx.fillRect(item.x, item.y, item.w, item.h);
+                ctx.fillStyle = '#000'; ctx.font = "bold 20px 'Segoe UI'";
+                ctx.fillText(item.text, item.x + 12, item.y + 28);
+            });
 
             // Jugadores
-            Object.values(gameState.players).forEach(p => {
+            Object.values(gameState.players || {}).forEach(p => {
                 if (p.hp > 0) {
-                    // Cuerda de Telaraña
-                    if (p.grapple && p.grapple.active && p.isAdmin) {
-                        ctx.strokeStyle = p.isProfe ? '#38bdf8' : auraColor; 
-                        ctx.lineWidth = 3;
-                        ctx.shadowColor = p.isProfe ? '#38bdf8' : auraColor;
-                        ctx.shadowBlur = 15;
-                        ctx.beginPath(); 
-                        ctx.moveTo(p.x + p.w/2, p.y + 15); 
-                        ctx.lineTo(p.grapple.x, p.grapple.y); 
-                        ctx.stroke();
-                        ctx.shadowBlur = 0;
-                    }
-
-                    let isEnemy = (p.id !== myId);
-                    let baseColor = p.isProfe ? '#38bdf8' : (p.classType === 'PROFE / NINJA' ? '#0ea5e9' : '#10b981');
-                    if (isEnemy) baseColor = '#ef4444';
-
-                    // DIBUJAR AURA
-                    if (p.isProfe) {
-                        ctx.shadowBlur = 30;
-                        ctx.shadowColor = '#38bdf8';
-                        ctx.strokeStyle = '#60a5fa';
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.roundRect(p.x - 5, p.y - 5, p.w + 10, p.h + 10, 12);
-                        ctx.stroke();
-                    } else if (p.isAdmin) {
-                        ctx.shadowBlur = 30;
-                        ctx.shadowColor = auraColor;
-                        ctx.strokeStyle = auraColor;
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.roundRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8, 10);
-                        ctx.stroke();
-                    } else {
-                        ctx.shadowBlur = 20; 
-                        ctx.shadowColor = baseColor;
-                    }
-
-                    // Cuerpo del Jugador
-                    ctx.fillStyle = baseColor;
-                    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Ojos Redondeados
-                    let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
-                    let eyeW = 7, eyeH = 14;
-                    let eyeY = p.y + 10;
-                    
-                    ctx.fillStyle = '#ffffff';
-                    ctx.shadowColor = '#ffffff';
-                    ctx.shadowBlur = 10;
-                    ctx.beginPath();
-                    ctx.roundRect(p.x + (dir > 0 ? 20 : 5), eyeY, eyeW, eyeH, 3);
-                    ctx.roundRect(p.x + (dir > 0 ? 10 : 15), eyeY, eyeW, eyeH, 3);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Nombre y Título de Profe
-                    ctx.fillStyle = p.isProfe ? '#60a5fa' : (p.isAdmin ? '#fbbf24' : '#fff');
-                    ctx.font = "bold 13px 'Segoe UI'"; ctx.textAlign = "center";
-                    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-                    ctx.fillText(p.name + (p.isProfe ? ' 🎓 [ENGLISH PROFE]' : (p.isAdmin ? ' 👑' : '')), p.x + p.w/2, p.y - 12);
-                    ctx.shadowBlur = 0;
-                    ctx.textAlign = "left";
+                    ctx.fillStyle = p.isNinja ? '#a855f7' : (p.isWolfcute ? '#ec4899' : (p.isProfe ? '#38bdf8' : '#10b981'));
+                    ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.fillStyle = '#fff'; ctx.font = "12px 'Segoe UI'";
+                    ctx.fillText(p.name, p.x, p.y - 8);
                 }
             });
 
-            // Disparos y Proyectiles de Inglés
-            gameState.bullets.forEach(b => {
-                if (b.isBook) {
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#60a5fa';
-                    ctx.fillStyle = '#1e3a8a';
-                    ctx.fillRect(b.x - 12, b.y - 12, 24, 24);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = "bold 12px 'Segoe UI'";
-                    ctx.fillText(b.text, b.x - 10, b.y + 4);
-                } else {
-                    let color = b.damage > 30 ? '#ef4444' : '#38bdf8';
-                    ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
-                    ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
-                }
-                ctx.shadowBlur = 0;
+            // Balas
+            (gameState.bullets || []).forEach(b => {
+                ctx.fillStyle = b.isShuriken ? '#a855f7' : (b.isBook ? '#38bdf8' : '#ef4444');
+                ctx.fillRect(b.x-4, b.y-4, 8, 8);
             });
 
             ctx.restore();
-
-            if (me) {
-                document.getElementById('player-info').innerHTML = `<b style="color:#34d399">${me.name}</b> ${me.isProfe ? '🎓' : (me.isAdmin ? '👑' : '')} | Bajas: <b style="color:#fcd34d">${me.score}</b>`;
-                document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
-            }
-
-            requestAnimationFrame(draw);
+            if (me) document.getElementById('player-info').innerText = `${me.name} | Vida: ${me.hp}`;
         }
         draw();
     </script>
