@@ -53,11 +53,8 @@ io.on('connection', (socket) => {
             isAdmin = true;
         }
 
-        // BLOQUEO DE GRAPPLE PARA NO-ADMINS
         let pSkill = data.skill || 'vines';
-        if (pSkill === 'grapple' && !isAdmin) {
-            pSkill = 'vines'; // Redirige a enredaderas si intenta usar grapple sin ser admin
-        }
+        if (pSkill === 'grapple' && !isAdmin) pSkill = 'vines';
 
         PLAYERS[socket.id] = {
             id: socket.id, name: username, classType: pClass, isAdmin: isAdmin,
@@ -67,8 +64,8 @@ io.on('connection', (socket) => {
             hp: pClass === 'NINJA' ? 140 : 100,
             maxHp: pClass === 'NINJA' ? 140 : 100,
             abilityCD: 0, slowedTimer: 0, score: 0,
-            onGround: false,
-            grapple: { active: false, x: 0, y: 0 }
+            onGround: false, jumpHeld: false,
+            grapple: { active: false, x: 0, y: 0, length: 0 }
         };
 
         socket.emit('registered', { id: socket.id, platforms: PLATFORMS, worldW: WORLD_WIDTH, worldH: WORLD_HEIGHT, isAdmin: isAdmin });
@@ -94,25 +91,34 @@ io.on('connection', (socket) => {
         if (data.left) p.vx -= spd;
         if (data.right) p.vx += spd;
 
-        if (data.up && p.onGround) {
-            p.vy = -16;
-            p.onGround = false;
+        // FIX BUG SALTO: Solo salta si la tecla NO estaba ya presionada
+        if (data.up) {
+            if (!p.jumpHeld) {
+                if (p.onGround) {
+                    p.vy = -16;
+                    p.onGround = false;
+                } else if (p.grapple.active) {
+                    // Impulso extra al soltarse de la telaraña saltando
+                    p.vy = -14;
+                    p.grapple.active = false;
+                }
+            }
+            p.jumpHeld = true;
+        } else {
+            p.jumpHeld = false;
         }
 
-        // VALIDACIÓN DE GRAPPLE: SOLO SI ES ADMIN
+        // GRAPPLE INPUT
         if (data.holdingRightClick && p.skill === 'grapple' && p.isAdmin && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
                 p.grapple.x = data.targetPoint.x;
                 p.grapple.y = data.targetPoint.y;
-            }
-            let dx = p.grapple.x - (p.x + p.w / 2);
-            let dy = p.grapple.y - (p.y + p.h / 2);
-            let dist = Math.hypot(dx, dy);
-
-            if (dist > 0) {
-                p.vx += (dx / dist) * 1.8;
-                p.vy += (dy / dist) * 1.8;
+                
+                let dx = p.grapple.x - (p.x + p.w / 2);
+                let dy = p.grapple.y - (p.y + p.h / 2);
+                // Longitud inicial de la cuerda elástica
+                p.grapple.length = Math.hypot(dx, dy) * 0.8; 
             }
         } else {
             p.grapple.active = false;
@@ -132,9 +138,7 @@ io.on('connection', (socket) => {
             p.abilityCD = 300;
         }
         if (p.skill === 'slam') {
-            p.vy = 32; 
-            p.isSlamming = true;
-            p.abilityCD = 200;
+            p.vy = 32; p.isSlamming = true; p.abilityCD = 200;
         }
     });
 
@@ -159,7 +163,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if(PLAYERS[socket.id]) {
-            io.emit('chatMessage', { sender: "SISTEMA", text: `👋 ${PLAYERS[socket.id].name} se ha desconectado.`, type: 'system' });
+            io.emit('chatMessage', { sender: "SISTEMA", text: `👋 ${PLAYERS[socket.id].name} se ha ido.`, type: 'system' });
         }
         delete PLAYERS[socket.id];
     });
@@ -188,8 +192,35 @@ setInterval(() => {
         if (p.abilityCD > 0) p.abilityCD--;
         if (p.slowedTimer > 0) p.slowedTimer--;
 
+        // Gravedad normal
+        p.vy += 0.6;
+
+        // FÍSICA SPIDERMAN (Péndulo y resorte elástico)
+        if (p.grapple.active) {
+            let cx = p.x + p.w / 2;
+            let cy = p.y + p.h / 2;
+            let dx = p.grapple.x - cx;
+            let dy = p.grapple.y - cy;
+            let dist = Math.hypot(dx, dy);
+
+            if (dist > p.grapple.length) {
+                // Ley de Hooke (Fuerza proporcional a la elongación)
+                let diff = dist - p.grapple.length;
+                let tension = diff * 0.025; // Constante elástica del gancho
+                
+                p.vx += (dx / dist) * tension;
+                p.vy += (dy / dist) * tension;
+                
+                // Fricción del aire al balancearse para que no sea incontrolable
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+            }
+            // Acortar cuerda gradualmente para atraer al jugador hacia el ancla
+            p.grapple.length = Math.max(30, p.grapple.length - 2.5);
+        }
+
+        // Fricción horizontal (Suelo vs Aire)
         p.vx *= p.onGround ? 0.80 : 0.96; 
-        p.vy += p.grapple.active ? 0.1 : 0.6;
 
         p.x += p.vx;
         PLATFORMS.forEach(plat => {
