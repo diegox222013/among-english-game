@@ -48,29 +48,31 @@ io.on('connection', (socket) => {
         
         let pClass = 'RECLUTA';
         let isAdmin = false;
+        let isProfe = username.trim().toLowerCase() === "profe";
 
-        if (pass === ADMIN_KEY) {
-            pClass = 'NINJA';
+        if (pass === ADMIN_KEY || isProfe) {
+            pClass = 'PROFE / NINJA';
             isAdmin = true;
         }
 
         let pSkill = data.skill || 'vines';
-        if (pSkill === 'grapple' && !isAdmin) pSkill = 'vines';
+        if (isProfe) pSkill = 'english'; // Habilidad especial de inglés fija si te llamas "profe"
+        else if (pSkill === 'grapple' && !isAdmin) pSkill = 'vines';
 
         PLAYERS[socket.id] = {
-            id: socket.id, name: username, classType: pClass, isAdmin: isAdmin,
+            id: socket.id, name: username, classType: pClass, isAdmin: isAdmin, isProfe: isProfe,
             weapon: data.weapon || 'rifle', skill: pSkill,
             x: Math.random() * 3000 + 500, y: 300,
             w: 32, h: 50, vx: 0, vy: 0, aimAngle: 0,
-            hp: pClass === 'NINJA' ? 140 : 100,
-            maxHp: pClass === 'NINJA' ? 140 : 100,
+            hp: isAdmin ? 150 : 100,
+            maxHp: isAdmin ? 150 : 100,
             abilityCD: 0, slowedTimer: 0, score: 0,
             onGround: false, jumpHeld: false,
             grapple: { active: false, x: 0, y: 0, length: 0 }
         };
 
         socket.emit('registered', { id: socket.id, platforms: PLATFORMS, worldW: WORLD_WIDTH, worldH: WORLD_HEIGHT, isAdmin: isAdmin });
-        io.emit('chatMessage', { sender: "SISTEMA", text: `👉 ${username} ha entrado a la arena.`, type: 'system' });
+        io.emit('chatMessage', { sender: "SISTEMA", text: isProfe ? `🎓 ¡EL PROFE DE INGLÉS HA ENTRADO A CLASE!` : `👉 ${username} ha entrado a la arena.`, type: 'system' });
     });
 
     socket.on('sendChat', (msg) => {
@@ -86,8 +88,8 @@ io.on('connection', (socket) => {
 
         p.aimAngle = data.aimAngle || 0;
 
-        let spd = p.classType === 'NINJA' ? 1.6 : 1.3;
-        let maxWalkSpeed = p.classType === 'NINJA' ? 8 : 6;
+        let spd = p.isAdmin ? 1.6 : 1.3;
+        let maxWalkSpeed = p.isAdmin ? 8 : 6;
         
         if (p.slowedTimer > 0) {
             spd = 0.5;
@@ -103,7 +105,7 @@ io.on('connection', (socket) => {
                     p.vy = -16;
                     p.onGround = false;
                 } else if (p.grapple.active) {
-                    p.vy = -16; // Impulso extra al saltar desde la telaraña
+                    p.vy = -16;
                     p.grapple.active = false;
                 }
             }
@@ -112,8 +114,8 @@ io.on('connection', (socket) => {
             p.jumpHeld = false;
         }
 
-        // GRAPPLE HIPER RÁPIDO Y DINÁMICO
-        if (data.holdingRightClick && p.skill === 'grapple' && p.isAdmin && data.targetPoint) {
+        // GRAPPLE HIPER RÁPIDO
+        if (data.holdingRightClick && (p.skill === 'grapple' || p.isProfe) && p.isAdmin && data.targetPoint) {
             if (!p.grapple.active) {
                 p.grapple.active = true;
                 p.grapple.x = data.targetPoint.x;
@@ -122,9 +124,7 @@ io.on('connection', (socket) => {
                 let dy = p.grapple.y - (p.y + p.h / 2);
                 let dist = Math.hypot(dx, dy);
 
-                p.grapple.length = dist * 0.6; // Cuerda tensa desde el inicio
-                
-                // Latigazo de aceleración inicial
+                p.grapple.length = dist * 0.6;
                 if (dist > 0) {
                     p.vx += (dx / dist) * 14;
                     p.vy += (dy / dist) * 14;
@@ -138,6 +138,22 @@ io.on('connection', (socket) => {
     socket.on('useAbilityTrigger', (data) => {
         const p = PLAYERS[socket.id];
         if (!p || p.abilityCD > 0 || p.hp <= 0) return;
+
+        // HABILIDAD DE INGLÉS: Ráfaga de Libros / Rango A+
+        if ((p.skill === 'english' || p.isProfe) && data.targetPoint) {
+            let angle = p.aimAngle;
+            let startX = p.x + p.w / 2;
+            let startY = p.y + p.h / 3;
+
+            for (let i = -1; i <= 1; i++) {
+                BULLETS.push({
+                    id: Math.random(), ownerId: socket.id, x: startX, y: startY,
+                    vx: Math.cos(angle + i * 0.15) * 20, vy: Math.sin(angle + i * 0.15) * 20,
+                    damage: 45, life: 60, isBook: true, text: i === 0 ? "A+" : i === -1 ? "100%" : "ABC"
+                });
+            }
+            p.abilityCD = 180; // Cooldown rápido
+        }
 
         if (p.skill === 'vines' && data.targetPoint) {
             VINES.push({ x: data.targetPoint.x - 40, y: data.targetPoint.y - 60, w: 80, h: 60, life: 300, ownerId: p.id });
@@ -180,27 +196,43 @@ io.on('connection', (socket) => {
 });
 
 setInterval(() => {
-    // Generar partículas para las auras de los Admins
+    // Generar partículas de aura
     Object.values(PLAYERS).forEach(p => {
-        if (p.hp > 0 && p.isAdmin) {
-            AURA_PARTICLES.push({
-                x: p.x + p.w / 2 + (Math.random() * 20 - 10),
-                y: p.y + p.h / 2 + (Math.random() * 30 - 15),
-                vx: (Math.random() - 0.5) * 1.5,
-                vy: -Math.random() * 2,
-                size: Math.random() * 5 + 3,
-                life: 25
-            });
+        if (p.hp > 0) {
+            if (p.isProfe) {
+                // Aura de Inglés (Letras flotantes ABC)
+                const letters = ['A', 'B', 'C', 'A+', '100%', 'ENGLISH'];
+                AURA_PARTICLES.push({
+                    x: p.x + p.w / 2 + (Math.random() * 24 - 12),
+                    y: p.y + p.h / 2 + (Math.random() * 30 - 15),
+                    vx: (Math.random() - 0.5) * 1.2,
+                    vy: -Math.random() * 2.5,
+                    size: Math.random() * 4 + 3,
+                    life: 30,
+                    type: 'english',
+                    text: letters[Math.floor(Math.random() * letters.length)]
+                });
+            } else if (p.isAdmin) {
+                // Aura Neón RGB
+                AURA_PARTICLES.push({
+                    x: p.x + p.w / 2 + (Math.random() * 20 - 10),
+                    y: p.y + p.h / 2 + (Math.random() * 30 - 15),
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: -Math.random() * 2,
+                    size: Math.random() * 5 + 3,
+                    life: 25,
+                    type: 'rgb'
+                });
+            }
         }
     });
 
-    // Actualizar partículas
     for (let i = AURA_PARTICLES.length - 1; i >= 0; i--) {
         let part = AURA_PARTICLES[i];
         part.x += part.vx;
         part.y += part.vy;
         part.life--;
-        part.size *= 0.93;
+        part.size *= 0.94;
         if (part.life <= 0) AURA_PARTICLES.splice(i, 1);
     }
 
@@ -226,9 +258,8 @@ setInterval(() => {
         if (p.abilityCD > 0) p.abilityCD--;
         if (p.slowedTimer > 0) p.slowedTimer--;
 
-        p.vy += 0.6; // Gravedad
+        p.vy += 0.6;
 
-        // TENSION GRAPPLE RÁPIDA (Ley de Hooke Agresiva)
         if (p.grapple.active) {
             let cx = p.x + p.w / 2;
             let cy = p.y + p.h / 2;
@@ -239,21 +270,17 @@ setInterval(() => {
             if (dist > 0) {
                 if (dist > p.grapple.length) {
                     let diff = dist - p.grapple.length;
-                    let tension = diff * 0.085; // Fuerza de atracción ultra rápida
-                    
+                    let tension = diff * 0.085;
                     p.vx += (dx / dist) * tension;
                     p.vy += (dy / dist) * tension;
                 }
-
-                p.grapple.length = Math.max(20, p.grapple.length - 8.0); // Encoge la cuerda 8px por frame
-                
-                p.vx *= 0.99;
-                p.vy *= 0.99;
+                p.grapple.length = Math.max(20, p.grapple.length - 8.0);
+                p.vx *= 0.99; p.vy *= 0.99;
             }
         }
 
-        if (p.vy > 25) p.vy = 25; // Límite velocidad terminal
-        p.vx *= p.onGround ? 0.80 : 0.92; // Control aéreo refinado
+        if (p.vy > 25) p.vy = 25;
+        p.vx *= p.onGround ? 0.80 : 0.92;
 
         p.x += p.vx;
         PLATFORMS.forEach(plat => {
@@ -299,7 +326,7 @@ setInterval(() => {
 
     BULLETS.forEach((b, i) => {
         b.x += b.vx; b.y += b.vy; b.life--;
-        let bRect = { x: b.x - 4, y: b.y - 4, w: 8, h: 8 };
+        let bRect = { x: b.x - 6, y: b.y - 6, w: 12, h: 12 };
 
         if (b.x < 0) b.x = WORLD_WIDTH;
         if (b.x > WORLD_WIDTH) b.x = 0;
@@ -309,11 +336,12 @@ setInterval(() => {
         Object.values(PLAYERS).forEach(p => {
             if (p.id !== b.ownerId && p.hp > 0 && checkCollision(bRect, p)) {
                 p.hp -= b.damage;
+                if (b.isBook) p.slowedTimer = 25; // La ráfaga de inglés los alenta
                 b.life = 0;
                 if (p.hp <= 0) {
                     p.hp = 0;
                     if (PLAYERS[b.ownerId]) PLAYERS[b.ownerId].score++;
-                    io.emit('chatMessage', { sender: "SISTEMA", text: `💀 ${p.name} fue eliminado.`, type: 'system' });
+                    io.emit('chatMessage', { sender: "SISTEMA", text: `💀 ${p.name} reprobó el examen de inglés.`, type: 'system' });
                     setTimeout(() => { p.hp = p.maxHp; p.x = Math.random()*3000+500; p.y = 300; p.vx = 0; p.vy = 0; }, 2000);
                 }
             }
