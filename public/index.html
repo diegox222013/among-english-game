@@ -2,49 +2,78 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>NINJA ARENA 2D - MAPA COMPLETO</title>
+    <title>NATURE ARENA - ADMIN & SKILLS</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #000; color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
-        
-        #login-screen {
-            position: absolute; inset: 0; background: #070a12;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
-        }
-        .login-box {
-            background: #0f172a; border: 2px solid #38bdf8; padding: 30px; border-radius: 12px;
-            text-align: center; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); width: 320px;
-        }
-        input, button { padding: 12px; font-size: 16px; margin-top: 12px; border-radius: 6px; border: none; font-weight: bold; width: 100%; }
-        input { background: #1e293b; color: #fff; border: 1px solid #475569; text-align: center; }
-        button { background: #22c55e; color: #fff; cursor: pointer; }
-        button:hover { background: #16a34a; }
+        body { background: #050b14; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        canvas { display: block; background: #0b1120; }
+        #lobby-screen {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, #09131d 0%, #052e16 100%);
+            display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        .lobby-card {
+            background: rgba(15, 23, 42, 0.95); border: 2px solid #22c55e;
+            padding: 25px; border-radius: 16px; width: 480px; text-align: center;
+        }
+        .form-group { margin-bottom: 12px; text-align: left; }
+        label { font-size: 12px; color: #86efac; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        input, select, button { padding: 10px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; }
+        input, select { background: #1e293b; color: #fff; border: 1px solid #334155; }
+        button { background: #22c55e; color: #052e16; cursor: pointer; font-size: 16px; margin-top: 10px; }
         
         #hud {
             position: absolute; top: 15px; left: 15px; pointer-events: none;
-            background: rgba(15, 23, 42, 0.9); border: 1px solid #334155;
-            padding: 12px; border-radius: 8px; font-size: 14px;
+            background: rgba(15, 23, 42, 0.9); border: 1px solid #22c55e;
+            padding: 12px; border-radius: 10px; font-size: 13px;
         }
-        .hp-bar { background: #334155; height: 12px; width: 200px; border-radius: 6px; margin-top: 5px; overflow: hidden; }
-        .hp-fill { background: #22c55e; height: 100%; transition: width 0.1s; }
+        .hp-bar { background: #1e293b; height: 12px; width: 200px; border-radius: 6px; margin-top: 4px; overflow: hidden; }
+        .hp-fill { background: #22c55e; height: 100%; }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-<div id="login-screen">
-    <div class="login-box">
-        <h2 style="color: #38bdf8;">ARENA PLATAFORMAS</h2>
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 5px;">Ninja (diegox222013) | Profe (profe)</p>
-        <input type="text" id="username" placeholder="Tu Nombre..." maxlength="15">
-        <button onclick="login()">¡JUGAR!</button>
+<div id="lobby-screen">
+    <div class="lobby-card">
+        <h1 style="color: #4ade80;">🌲 NATURE ARENA 🌿</h1>
+        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 15px;">Selecciona tus Habilidades de Combate</p>
+
+        <div class="form-group">
+            <label>Nombre del Operativo:</label>
+            <input type="text" id="username" placeholder="Tu Nombre">
+        </div>
+
+        <div class="form-group">
+            <label>🔑 Clave de Admin (Acceso Ninja Exclusivo):</label>
+            <input type="password" id="adminKey" placeholder="Solo para el Admin">
+        </div>
+
+        <div class="form-group">
+            <label>Arma Principal:</label>
+            <select id="weapon-select">
+                <option value="rifle">Rifle de Asalto</option>
+                <option value="shotgun">Escopeta Pesada</option>
+                <option value="sniper">Ballesta Francotiradora</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Habilidad Especial:</label>
+            <select id="skill-select">
+                <option value="grapple">🪝 Gancho Grapple (Sostener Clic Der)</option>
+                <option value="vines">🌿 Enredadera Espinosa (Trampa)</option>
+                <option value="tornado">🍃 Tornado Foliar (Super Viento)</option>
+                <option value="slam">🪨 Pisotón Sísmico (Caída Explosiva)</option>
+            </select>
+        </div>
+
+        <button onclick="startGame()">¡DESPLEGAR AL JUEGO!</button>
     </div>
 </div>
 
 <div id="hud">
-    <div id="player-info">Cargando...</div>
+    <div id="player-info">Esperando...</div>
     <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
 </div>
 
@@ -60,148 +89,62 @@
 
     let myId = null;
     let platforms = [];
-    let gameState = { players: {}, bullets: [] };
-    const inputs = { left: false, right: false, up: false, aimAngle: 0 };
+    let gameState = { players: {}, bullets: [], vines: [], tornados: [] };
+
+    const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
     let mouse = { x: 0, y: 0 };
 
-    function login() {
+    function startGame() {
         const name = document.getElementById('username').value;
-        if (name) {
-            socket.emit('joinGame', name);
-            document.getElementById('login-screen').style.display = 'none';
-        }
+        const adminKey = document.getElementById('adminKey').value;
+        const weapon = document.getElementById('weapon-select').value;
+        const skill = document.getElementById('skill-select').value;
+
+        socket.emit('joinGame', { name, adminKey, weapon, skill });
+        document.getElementById('lobby-screen').style.display = 'none';
     }
 
-    socket.on('registered', data => {
-        myId = data.id;
-        platforms = data.platforms;
-    });
-
+    socket.on('registered', data => { myId = data.id; platforms = data.platforms; });
     socket.on('stateUpdate', data => gameState = data);
 
     window.addEventListener('keydown', e => {
-        if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.left = true;
-        if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.right = true;
+        if (e.code === 'KeyA') inputs.left = true;
+        if (e.code === 'KeyD') inputs.right = true;
         if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
     });
 
     window.addEventListener('keyup', e => {
-        if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.left = false;
-        if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.right = false;
+        if (e.code === 'KeyA') inputs.left = false;
+        if (e.code === 'KeyD') inputs.right = false;
         if (e.code === 'KeyW' || e.code === 'Space') inputs.up = false;
     });
 
-    window.addEventListener('mousemove', e => { 
-        mouse.x = e.clientX; 
-        mouse.y = e.clientY; 
-    });
+    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
     window.addEventListener('mousedown', e => {
-        let me = gameState.players[myId];
-        if (!me) return;
-
-        let camX = me.x - canvas.width / 2;
-        let camY = me.y - canvas.height / 2;
-        let worldMouseX = mouse.x + camX;
-        let worldMouseY = mouse.y + camY;
-
-        let angle = Math.atan2(worldMouseY - (me.y + me.h/3), worldMouseX - (me.x + me.w/2));
-
-        if (e.button === 0) {
-            socket.emit('shoot', angle);
-        } else if (e.button === 2) {
-            socket.emit('useAbility', { x: worldMouseX, y: worldMouseY });
+        if (e.button === 0) socket.emit('shoot');
+        if (e.button === 2) {
+            inputs.holdingRightClick = true;
+            socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
         }
     });
+
+    window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
     window.addEventListener('contextmenu', e => e.preventDefault());
 
-    // Enviar ángulo de apuntado continuo al servidor
     setInterval(() => {
         let me = gameState.players[myId];
         if (me) {
             let camX = me.x - canvas.width / 2;
             let camY = me.y - canvas.height / 2;
             inputs.aimAngle = Math.atan2((mouse.y + camY) - (me.y + me.h/3), (mouse.x + camX) - (me.x + me.w/2));
+            inputs.targetPoint = { x: mouse.x + camX, y: mouse.y + camY };
         }
         socket.emit('playerInput', inputs);
     }, 1000 / 60);
 
-    // Dibujar personaje detallado
-    function drawAvatar(p) {
-        let centerX = p.x + p.w / 2;
-        let centerY = p.y + p.h / 2;
-
-        // Cuerda de Gancho Grapple (Si se usó)
-        if (p.grapple) {
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(centerX, p.y + 10);
-            ctx.lineTo(p.grapple.x, p.grapple.y);
-            ctx.stroke();
-        }
-
-        // 1. Cuerpo (Traje/Ropa)
-        ctx.fillStyle = p.classType === 'NINJA' ? '#0284c7' : (p.classType === 'PROFE' ? '#7e22ce' : '#15803d');
-        ctx.fillRect(p.x + 4, p.y + 18, 24, 26);
-
-        // 2. Cabeza
-        ctx.fillStyle = p.classType === 'NINJA' ? '#0f172a' : '#fbcfe8'; // Ninja usa máscara negra
-        ctx.beginPath();
-        ctx.arc(centerX, p.y + 12, 12, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Cinta Ninja / Lentes Profe
-        if (p.classType === 'NINJA') {
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(p.x + 4, p.y + 8, 24, 5); // Cinta
-        } else if (p.classType === 'PROFE') {
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(centerX - 9, p.y + 8, 8, 6); // Lentes
-            ctx.strokeRect(centerX + 1, p.y + 8, 8, 6);
-        }
-
-        // 3. Ojos Interactivos (Siguen el ángulo donde apunta)
-        let eyeDist = 4;
-        let eyeX = Math.cos(p.aimAngle) * eyeDist;
-        let eyeY = Math.sin(p.aimAngle) * eyeDist;
-
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(centerX - 4 + eyeX, p.y + 11 + eyeY, 3, 0, Math.PI * 2);
-        ctx.arc(centerX + 4 + eyeX, p.y + 11 + eyeY, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(centerX - 4 + eyeX, p.y + 11 + eyeY, 1.5, 0, Math.PI * 2);
-        ctx.arc(centerX + 4 + eyeX, p.y + 11 + eyeY, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 4. Armas Visibles
-        ctx.save();
-        ctx.translate(centerX, p.y + 24);
-        ctx.rotate(p.aimAngle);
-        ctx.fillStyle = '#64748b';
-        ctx.fillRect(5, -3, 16, 6); // Cañón del arma
-        ctx.restore();
-
-        // 5. Nombre y Barra de Vida encima del personaje
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(p.name, centerX, p.y - 18);
-
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(p.x - 4, p.y - 12, 40, 6);
-        ctx.fillStyle = p.hp > 30 ? '#22c55e' : '#ef4444';
-        ctx.fillRect(p.x - 4, p.y - 12, (p.hp / p.maxHp) * 40, 6);
-    }
-
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         let me = gameState.players[myId];
         let camX = me ? me.x - canvas.width / 2 : 0;
         let camY = me ? me.y - canvas.height / 2 : 0;
@@ -209,36 +152,62 @@
         ctx.save();
         ctx.translate(-camX, -camY);
 
-        // Renderizar Escenario / Plataformas
+        // Mapa
         platforms.forEach(plat => {
-            ctx.fillStyle = '#1e293b';
+            ctx.fillStyle = plat.type === 'grass' ? '#15803d' : '#334155';
             ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
         });
 
-        // Jugadores
+        // 1. Dibujar Enredaderas
+        (gameState.vines || []).forEach(v => {
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.7)';
+            ctx.fillRect(v.x, v.y, v.w, v.h);
+            ctx.strokeStyle = '#15803d';
+            ctx.strokeRect(v.x, v.y, v.w, v.h);
+        });
+
+        // 2. Dibujar Tornados de Viento
+        (gameState.tornados || []).forEach(t => {
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+            ctx.fillRect(t.x, t.y, t.w, t.h);
+        });
+
+        // Jugadores y Grapple
         Object.values(gameState.players).forEach(p => {
-            if (p.hp > 0) drawAvatar(p);
+            if (p.hp > 0) {
+                if (p.grapple && p.grapple.active) {
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + p.w/2, p.y + 10);
+                    ctx.lineTo(p.grapple.x, p.grapple.y);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = p.classType === 'NINJA' ? '#0ea5e9' : '#16a34a';
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+
+                // Corona de Admin para Ti
+                if (p.isAdmin) {
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillText('👑 ADMIN', p.x + p.w/2, p.y - 25);
+                }
+
+                ctx.fillStyle = '#fff';
+                ctx.fillText(p.name, p.x + p.w/2, p.y - 10);
+            }
         });
 
         // Balas
         gameState.bullets.forEach(b => {
-            ctx.fillStyle = b.type === 'NINJA' ? '#38bdf8' : (b.type === 'PROFE' ? '#c084fc' : '#f59e0b');
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
         });
 
         ctx.restore();
 
-        // HUD
         if (me) {
             document.getElementById('player-info').innerHTML = 
-                `<b>${me.name}</b> [${me.classType}] | Bajas: ${me.score}<br>` +
-                `<span style="color:#94a3b8;">Habilidad (Clic Der):</span> ${me.abilityCD === 0 ? '<b style="color:#22c55e;">¡READY!</b>' : Math.ceil(me.abilityCD/60)+'s'}`;
-            
+                `Rol: <b>${me.classType}</b> ${me.isAdmin ? '👑' : ''} | Kills: ${me.score}`;
             document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
         }
 
