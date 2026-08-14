@@ -5,204 +5,252 @@ const io = require('socket.io')(http, { cors: { origin: "*" } });
 
 app.use(express.static('public'));
 
-// CONFIGURACIONES Y CLAVES
+// ==========================================
+// ⚙️ CONFIGURACIÓN GLOBAL Y CONSTANTES
+// ==========================================
+const ADMIN_KEY = "admin123";
 const NINJA_SECRET_KEY = "diegox222013";
-const WORLD_WIDTH = 4000;
-const WORLD_HEIGHT = 1600;
 
-// PLATAFORMAS (Plataformas destructibles / dinámicas)
-const PLATFORMS = [
-    { id: 'floor1', x: 0, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
-    { id: 'floor2', x: 2200, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
-    { id: 'plat_left', x: 400, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true },
-    { id: 'plat_mid', x: 1800, y: 950, w: 400, h: 30, type: 'bridge', active: true },
-    { id: 'plat_right', x: 3000, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true }
+let GAME_STATE = 'LOBBY'; // 'LOBBY' o 'PLAYING'
+let CURRENT_MAP_INDEX = 0;
+
+// ==========================================
+// 🗺️ BASE DE DATOS DE MAPAS GIGANTES
+// ==========================================
+const MAPS = [
+    {
+        name: "CYBER CITY NEON",
+        width: 6000, height: 3000,
+        bgColor: "#020617",
+        platforms: [
+            { id: 'f1', x: 0, y: 2800, w: 2000, h: 200, type: 'arena' },
+            { id: 'f2', x: 2500, y: 2800, w: 1000, h: 200, type: 'bridge' },
+            { id: 'f3', x: 4000, y: 2800, w: 2000, h: 200, type: 'arena' },
+            { id: 'p1', x: 800, y: 2400, w: 500, h: 40, type: 'glass' },
+            { id: 'p2', x: 1500, y: 2000, w: 400, h: 40, type: 'arena' },
+            { id: 'p3', x: 2800, y: 2300, w: 400, h: 40, type: 'glass' },
+            { id: 'p4', x: 3500, y: 1800, w: 600, h: 40, type: 'arena' },
+            { id: 'tower1', x: 1800, y: 1000, w: 200, h: 1800, type: 'wall' }, // Pared gigante
+            { id: 'p5', x: 4500, y: 2400, w: 500, h: 40, type: 'arena' }
+        ],
+        spawnPoints: [{x: 500, y: 2500}, {x: 3000, y: 2500}, {x: 5000, y: 2500}]
+    },
+    {
+        name: "LAVA CORE DEEP",
+        width: 4000, height: 4000,
+        bgColor: "#1a0505",
+        platforms: [
+            { id: 'f1', x: 0, y: 3800, w: 4000, h: 200, type: 'danger_zone' }, // Lava
+            { id: 'p1', x: 500, y: 3400, w: 300, h: 40, type: 'arena' },
+            { id: 'p2', x: 1200, y: 3000, w: 300, h: 40, type: 'arena' },
+            { id: 'p3', x: 2000, y: 2600, w: 300, h: 40, type: 'arena' },
+            { id: 'p4', x: 2800, y: 2200, w: 300, h: 40, type: 'arena' },
+            { id: 'p5', x: 1500, y: 1800, w: 800, h: 40, type: 'glass' }
+        ],
+        spawnPoints: [{x: 600, y: 3200}, {x: 2100, y: 2400}, {x: 1800, y: 1500}]
+    }
 ];
 
 const PLAYERS = {};
 const BULLETS = [];
-const TACTICAL_NOTICES = {}; // Mensajes asimétricos por jugador
+const TACTICAL_NOTICES = {}; 
 
-// ESTADO GLOBAL DEL JUEGO
-let GAME_MODE = 'FFA'; // 'FFA', 'TEAM', 'WORD_RUSH', 'HUNTER', 'CREATOR_BOSS'
-let CREATOR_BOSS = null;
+// ==========================================
+// 🧬 ESTADÍSTICAS DE CLASES (HÉROES)
+// ==========================================
+const CLASS_STATS = {
+    'ASSAULT': { hp: 120, speed: 8, jumps: 2, color: '#38bdf8', w: 36, h: 54, aura: 'electric' },
+    'HEAVY': { hp: 200, speed: 5, jumps: 1, color: '#ef4444', w: 46, h: 64, aura: 'fire' },
+    'GHOST': { hp: 90, speed: 10, jumps: 3, color: '#10b981', w: 30, h: 48, aura: 'smoke' },
+    'NINJA': { hp: 140, speed: 12, jumps: 3, color: '#a855f7', w: 34, h: 50, aura: 'shadow' }
+};
 
-// BANCO DE EVENTOS ASIMÉTRICOS (Progresión lingüística)
-const EVENT_POOL = [
-    {
-        msg: "DANGER: The central bridge will collapse in 5 seconds!",
-        action: () => {
-            const bridge = PLATFORMS.find(p => p.id === 'plat_mid');
-            if (bridge) bridge.active = false;
-            setTimeout(() => { if (bridge) bridge.active = true; }, 7000);
-        }
-    },
-    {
-        msg: "INFO: Heavy Weapon Drop incoming on the Western Platform!",
-        action: () => {
-            BULLETS.push({ x: 600, y: 1050, vx: 0, vy: 0, damage: 80, life: 300, type: 'drop' });
-        }
-    },
-    {
-        msg: "WARNING: High Voltage on Eastern floor! Jump now!",
-        action: () => {
-            Object.values(PLAYERS).forEach(p => {
-                if (p.x > 2500 && p.onGround) p.hp -= 35;
-            });
-        }
-    }
-];
-
-function checkCollision(r1, r2) {
-    return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
-           r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
-}
-
-// Bucle de Eventos Competitivos Tácticos (Cada 15 segundos)
-setInterval(() => {
-    if (Object.keys(PLAYERS).length === 0) return;
-
-    const currentEvent = EVENT_POOL[Math.floor(Math.random() * EVENT_POOL.length)];
-    const pKeys = Object.keys(PLAYERS);
-    
-    // Asimetría: Solo algunos jugadores reciben la advertencia real
-    const luckyPlayerId = pKeys[Math.floor(Math.random() * pKeys.length)];
-    
-    pKeys.forEach(id => {
-        if (id === luckyPlayerId) {
-            TACTICAL_NOTICES[id] = { text: `📡 [INTEL]: ${currentEvent.msg}`, color: '#38bdf8' };
-        } else {
-            TACTICAL_NOTICES[id] = { text: "📡 [INTEL]: Static noise... Radio signal lost.", color: '#64748b' };
-        }
-    });
-
-    // Ejecutar el evento en el mundo después de 5 segundos
-    setTimeout(() => {
-        currentEvent.action();
-        io.emit('chatMessage', { sender: "SYSTEM", text: "⚠️ TACTICAL EVENT EXECUTED!", type: 'alert' });
-    }, 5000);
-
-}, 15000);
-
+// ==========================================
+// 🔌 SISTEMA DE RED (SOCKETS)
+// ==========================================
 io.on('connection', (socket) => {
-    socket.on('joinGame', (data) => {
-        const username = data.name || "Operator";
+    
+    // Unirse al Lobby
+    socket.on('joinLobby', (data) => {
+        const username = data.name || `Operator-${Math.floor(Math.random()*1000)}`;
         const pass = data.adminKey ? data.adminKey.trim() : "";
-        const lowerName = username.trim().toLowerCase();
-
-        // VALIDACIÓN RIGUROSA DEL NINJA MEDIANTE SU CLAVE
+        
+        let isAdmin = (pass === ADMIN_KEY);
         let isNinja = (pass === NINJA_SECRET_KEY);
-        let isProfe = (lowerName === "profe");
-        let isWolfcute = (lowerName === "wolfcute");
-
-        let pRole = 'ROOKIE';
-        let color = '#10b981';
-
-        if (isNinja) { pRole = 'NINJA (SHADOW)'; color = '#a855f7'; }
-        else if (isProfe) { pRole = 'PROFE (MENTOR)'; color = '#38bdf8'; }
-        else if (isWolfcute) { pRole = 'WOLFCUTE (BEAST)'; color = '#ec4899'; }
+        let role = isAdmin ? 'ADMIN' : (isNinja ? 'SHADOW' : 'ROOKIE');
 
         PLAYERS[socket.id] = {
-            id: socket.id, name: username, pRole, color,
-            isNinja, isProfe, isWolfcute,
-            x: Math.random() * 1000 + 500, y: 1000,
-            w: 36, h: 54, vx: 0, vy: 0, aimAngle: 0,
-            hp: isNinja ? 140 : 100, maxHp: isNinja ? 140 : 100,
-            stamina: 100, dashCharges: isNinja ? 3 : 1,
-            abilityCD: 0, onGround: false, kills: 0
+            id: socket.id, name: username, role: role,
+            isAdmin: isAdmin, isNinja: isNinja,
+            charClass: isNinja ? 'NINJA' : 'ASSAULT', // Clase por defecto
+            ready: false,
+            // Stats de juego (se reinician al jugar)
+            x: 0, y: 0, w: 36, h: 54, vx: 0, vy: 0, aimAngle: 0,
+            hp: 100, maxHp: 100, onGround: false, kills: 0, color: '#fff'
         };
 
-        socket.emit('registered', { id: socket.id, platforms: PLATFORMS });
-        io.emit('chatMessage', { sender: "SYSTEM", text: `⚔️ ${username} joined as [${pRole}]`, type: 'system' });
+        socket.emit('lobbyData', { state: GAME_STATE, me: PLAYERS[socket.id], map: MAPS[CURRENT_MAP_INDEX] });
+        io.emit('updateLobbyPlayers', PLAYERS);
     });
 
+    // Cambiar Clase en el Lobby
+    socket.on('selectClass', (className) => {
+        if (GAME_STATE !== 'LOBBY' || !PLAYERS[socket.id]) return;
+        if (className === 'NINJA' && !PLAYERS[socket.id].isNinja) return; // Protegido
+        PLAYERS[socket.id].charClass = className;
+        io.emit('updateLobbyPlayers', PLAYERS);
+    });
+
+    // ==========================================
+// 👑 PODERES DE ADMINISTRADOR
+// ==========================================
+    socket.on('adminAction', (data) => {
+        const p = PLAYERS[socket.id];
+        if (!p || !p.isAdmin) return;
+
+        if (data.action === 'START_GAME') {
+            GAME_STATE = 'PLAYING';
+            const currentMap = MAPS[CURRENT_MAP_INDEX];
+            
+            // Spawnear jugadores y asignar stats
+            let spawnIndex = 0;
+            Object.values(PLAYERS).forEach(player => {
+                const stats = CLASS_STATS[player.charClass];
+                player.maxHp = stats.hp; player.hp = stats.hp;
+                player.w = stats.w; player.h = stats.h;
+                player.color = stats.color; player.aura = stats.aura;
+                player.speed = stats.speed; player.maxJumps = stats.jumps;
+                player.jumpsLeft = stats.jumps;
+                
+                // Asignar Spawn
+                let sp = currentMap.spawnPoints[spawnIndex % currentMap.spawnPoints.length];
+                player.x = sp.x + (Math.random()*100 - 50); 
+                player.y = sp.y - 100;
+                player.vx = 0; player.vy = 0;
+                spawnIndex++;
+            });
+            BULLETS.length = 0; // Limpiar balas
+            io.emit('gameStarted', { map: currentMap, players: PLAYERS });
+        }
+        
+        if (data.action === 'CHANGE_MAP') {
+            CURRENT_MAP_INDEX = (CURRENT_MAP_INDEX + 1) % MAPS.length;
+            io.emit('mapChanged', MAPS[CURRENT_MAP_INDEX]);
+        }
+    });
+
+    // ==========================================
+    // 🎮 INPUT Y LÓGICA DE JUEGO
+    // ==========================================
     socket.on('playerInput', (data) => {
+        if (GAME_STATE !== 'PLAYING') return;
         const p = PLAYERS[socket.id];
         if (!p || p.hp <= 0) return;
 
         p.aimAngle = data.aimAngle || 0;
-        let spd = 1.5;
-        let maxSpd = 8;
+        let maxSpd = p.speed || 8;
+        let accel = 1.5;
 
-        if (data.left && p.vx > -maxSpd) p.vx -= spd;
-        if (data.right && p.vx < maxSpd) p.vx += spd;
-        if (data.up && p.onGround) { p.vy = -18; p.onGround = false; }
-    });
-
-    // SISTEMA DE HABILIDADES Y BALANCE DEL NINJA
-    socket.on('useAbilityTrigger', () => {
-        const p = PLAYERS[socket.id];
-        if (!p || p.hp <= 0 || p.abilityCD > 0) return;
-
-        let angle = p.aimAngle;
-
-        // 🥷 NINJA: ZIP -> AIR DASH (Consume Cargas)
-        if (p.isNinja) {
-            if (p.dashCharges > 0) {
-                p.vx = Math.cos(angle) * 32;
-                p.vy = Math.sin(angle) * 32;
-                p.dashCharges--;
-                p.abilityCD = 20; // CD corto entre dashes
-                
-                // Regenerar carga cada 4 segundos
-                setTimeout(() => { if (p.dashCharges < 3) p.dashCharges++; }, 4000);
-            }
-        } 
-        // 📚 PROFE: MENTOR VISION (Traduce la última Intel pero revela ubicación)
-        else if (p.isProfe) {
-            let myNotice = TACTICAL_NOTICES[p.id];
-            if (myNotice) {
-                myNotice.text += " [TRANSLATED: ¡Peligro o Ventaja inminente!]";
-                myNotice.color = "#fcd34d";
-            }
-            // Muestra posición a los enemigos por breves segundos (Riesgo/Recompensa)
-            io.emit('revealProfe', { x: p.x, y: p.y });
-            p.abilityCD = 200;
+        if (data.left && p.vx > -maxSpd) p.vx -= accel;
+        if (data.right && p.vx < maxSpd) p.vx += accel;
+        
+        // Sistema Multi-Salto
+        if (data.upTrigger && p.jumpsLeft > 0) { 
+            p.vy = -18; 
+            p.onGround = false; 
+            p.jumpsLeft--; 
         }
     });
 
     socket.on('shoot', () => {
+        if (GAME_STATE !== 'PLAYING') return;
         const p = PLAYERS[socket.id];
         if (!p || p.hp <= 0) return;
-        BULLETS.push({ ownerId: socket.id, x: p.x + p.w/2, y: p.y + p.h/3, vx: Math.cos(p.aimAngle)*24, vy: Math.sin(p.aimAngle)*24, damage: 20, life: 60 });
+
+        // Propiedades de disparo según clase
+        let bSpeed = 24; let bDmg = 15; let bSize = 5; let bColor = p.color;
+        if (p.charClass === 'HEAVY') { bSpeed = 16; bDmg = 40; bSize = 10; }
+        if (p.charClass === 'GHOST') { bSpeed = 35; bDmg = 25; bSize = 3; }
+
+        BULLETS.push({ 
+            ownerId: socket.id, 
+            x: p.x + p.w/2, y: p.y + p.h/3, 
+            vx: Math.cos(p.aimAngle)*bSpeed, 
+            vy: Math.sin(p.aimAngle)*bSpeed, 
+            damage: bDmg, size: bSize, color: bColor, life: 100 
+        });
     });
 
-    socket.on('disconnect', () => delete PLAYERS[socket.id]);
+    socket.on('disconnect', () => {
+        delete PLAYERS[socket.id];
+        io.emit('updateLobbyPlayers', PLAYERS);
+    });
 });
 
-// Bucle Principal de Física 60 FPS
+// ==========================================
+// 🌍 BUCLE DE FÍSICAS GLOBAL (60 FPS)
+// ==========================================
+function checkCollision(r1, r2) {
+    return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
+}
+
 setInterval(() => {
+    if (GAME_STATE !== 'PLAYING') return;
+    const currentMap = MAPS[CURRENT_MAP_INDEX];
+
+    // Lógica Jugadores
     Object.values(PLAYERS).forEach(p => {
         if (p.hp <= 0) return;
-
-        if (p.abilityCD > 0) p.abilityCD--;
-        p.vy += 0.8;
-        p.vx *= p.onGround ? 0.85 : 0.95;
+        p.vy += 0.8; // Gravedad
+        p.vx *= p.onGround ? 0.85 : 0.95; // Fricción
         p.x += p.vx; p.y += p.vy;
         p.onGround = false;
 
-        // Colisión con Plataformas Dinámicas
-        PLATFORMS.forEach(plat => {
-            if (plat.active && checkCollision(p, plat)) {
-                if (p.vy > 0 && p.y + p.h - p.vy <= plat.y) {
+        // Colisión Mapas
+        currentMap.platforms.forEach(plat => {
+            if (checkCollision(p, plat)) {
+                // Colisión Superior (Suelo)
+                if (p.vy > 0 && p.y + p.h - p.vy <= plat.y + 10) {
                     p.y = plat.y - p.h; p.vy = 0; p.onGround = true;
+                    p.jumpsLeft = p.maxJumps; // Resetear saltos
+                }
+                // Colisión Lateral Muros Gigantes
+                else if (plat.type === 'wall') {
+                    if (p.vx > 0 && p.x < plat.x) { p.x = plat.x - p.w; p.vx = 0; }
+                    else if (p.vx < 0 && p.x > plat.x) { p.x = plat.x + plat.w; p.vx = 0; }
                 }
             }
         });
+        
+        // Muerte por caída al vacío o Lava
+        if (p.y > currentMap.height + 500) p.hp = 0;
     });
 
-    // Balas
+    // Lógica Balas
     BULLETS.forEach((b, i) => {
         b.x += b.vx; b.y += b.vy; b.life--;
+        
+        // Hitbox Jugadores
         Object.values(PLAYERS).forEach(p => {
-            if (p.id !== b.ownerId && checkCollision({x: b.x-6, y: b.y-6, w: 12, h: 12}, p)) {
-                p.hp -= b.damage; b.life = 0;
+            if (p.id !== b.ownerId && p.hp > 0 && checkCollision({x: b.x-b.size, y: b.y-b.size, w: b.size*2, h: b.size*2}, p)) {
+                p.hp -= b.damage; 
+                b.life = 0; // Destruir bala
+                io.emit('damageNumber', { x: p.x, y: p.y, dmg: b.damage }); // Emitir texto flotante
             }
         });
+
+        // Hitbox Plataformas
+        currentMap.platforms.forEach(plat => {
+            if (plat.type !== 'danger_zone' && checkCollision({x: b.x-b.size, y: b.y-b.size, w: b.size*2, h: b.size*2}, plat)) {
+                b.life = 0;
+            }
+        });
+
         if (b.life <= 0) BULLETS.splice(i, 1);
     });
 
-    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS, platforms: PLATFORMS, notices: TACTICAL_NOTICES });
+    // Enviar estado de física al cliente
+    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS });
 }, 1000 / 60);
 
-http.listen(3000, () => console.log("🎮 LAST WORD: WAR OF WORDS running on port 3000"));
+http.listen(3000, () => console.log("🔥 THE MONSTER IS AWAKE: WAR OF WORDS running on port 3000"));
