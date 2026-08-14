@@ -1,7 +1,7 @@
 {
-  "name": "ninja-online-buffed",
+  "name": "W-I-P",
   "version": "1.0.0",
-  "description": "Multiplayer 2D Arena God Mode",
+  "description": "Fortnite 2d",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
