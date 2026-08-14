@@ -1,208 +1,520 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http, { cors: { origin: "*" } });
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>LAST WORD: WAR OF WORDS (ULTRA EDITION)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: #020617; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
 
-app.use(express.static('public'));
+        /* MULTI-SCREENS */
+        #login-screen, #lobby-screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle, #0f172a 0%, #000 100%); z-index: 50; }
+        #lobby-screen { display: none; background: url('https://www.transparenttextures.com/patterns/cubes.png'), linear-gradient(135deg, #0f172a, #020617); }
 
-// CONFIGURACIONES Y CLAVES
-const NINJA_SECRET_KEY = "diegox222013";
-const WORLD_WIDTH = 4000;
-const WORLD_HEIGHT = 1600;
+        /* UI BOXES */
+        .box { background: rgba(15, 23, 42, 0.85); border: 2px solid #38bdf8; padding: 40px; border-radius: 15px; width: 450px; text-align: center; box-shadow: 0 0 30px rgba(56, 189, 248, 0.4); backdrop-filter: blur(15px); }
+        h1 { font-family: 'Orbitron', sans-serif; color: #38bdf8; font-size: 38px; margin-bottom: 5px; text-shadow: 0 0 15px #38bdf8, 0 0 30px #38bdf8; letter-spacing: 2px; }
+        p.subtitle { color: #94a3b8; font-size: 16px; margin-bottom: 30px; letter-spacing: 5px; }
 
-// PLATAFORMAS (Plataformas destructibles / dinámicas)
-const PLATFORMS = [
-    { id: 'floor1', x: 0, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
-    { id: 'floor2', x: 2200, y: 1400, w: 1800, h: 100, type: 'arena', active: true },
-    { id: 'plat_left', x: 400, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true },
-    { id: 'plat_mid', x: 1800, y: 950, w: 400, h: 30, type: 'bridge', active: true },
-    { id: 'plat_right', x: 3000, y: 1100, w: 400, h: 30, type: 'danger_zone', active: true }
-];
+        input, button { width: 100%; padding: 15px; margin-top: 15px; border-radius: 8px; border: none; font-family: 'Orbitron', sans-serif; outline: none; font-size: 16px; transition: 0.3s; }
+        input { background: rgba(30, 41, 59, 0.8); color: #fff; border: 1px solid #475569; text-align: center; }
+        input:focus { border-color: #38bdf8; box-shadow: 0 0 15px rgba(56,189,248,0.5); }
+        button.btn-primary { background: linear-gradient(90deg, #0ea5e9, #38bdf8); color: #020617; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        button.btn-primary:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 10px 20px rgba(56, 189, 248, 0.6); }
+        
+        button.btn-admin { background: linear-gradient(90deg, #dc2626, #ef4444); color: white; display: none; margin-top: 20px; border: 2px solid #f87171; animation: pulseAdmin 2s infinite; }
+        @keyframes pulseAdmin { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
-const PLAYERS = {};
-const BULLETS = [];
-const TACTICAL_NOTICES = {}; // Mensajes asimétricos por jugador
+        /* LOBBY UI */
+        .lobby-container { display: flex; gap: 30px; width: 90%; max-width: 1200px; height: 80vh; }
+        .panel { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .roster-panel { flex: 1; overflow-y: auto; }
+        .class-panel { flex: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .admin-panel { flex: 1; border-color: #ef4444; display: none; }
 
-// ESTADO GLOBAL DEL JUEGO
-let GAME_MODE = 'FFA'; // 'FFA', 'TEAM', 'WORD_RUSH', 'HUNTER', 'CREATOR_BOSS'
-let CREATOR_BOSS = null;
+        .player-item { padding: 10px; border-bottom: 1px solid #334155; font-family: 'Orbitron'; display: flex; justify-content: space-between; }
+        .player-item span.role { color: #38bdf8; font-size: 12px; }
 
-// BANCO DE EVENTOS ASIMÉTRICOS (Progresión lingüística)
-const EVENT_POOL = [
-    {
-        msg: "DANGER: The central bridge will collapse in 5 seconds!",
-        action: () => {
-            const bridge = PLATFORMS.find(p => p.id === 'plat_mid');
-            if (bridge) bridge.active = false;
-            setTimeout(() => { if (bridge) bridge.active = true; }, 7000);
-        }
-    },
-    {
-        msg: "INFO: Heavy Weapon Drop incoming on the Western Platform!",
-        action: () => {
-            BULLETS.push({ x: 600, y: 1050, vx: 0, vy: 0, damage: 80, life: 300, type: 'drop' });
-        }
-    },
-    {
-        msg: "WARNING: High Voltage on Eastern floor! Jump now!",
-        action: () => {
-            Object.values(PLAYERS).forEach(p => {
-                if (p.x > 2500 && p.onGround) p.hp -= 35;
+        .class-card { background: #1e293b; border: 2px solid transparent; border-radius: 10px; padding: 20px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .class-card:hover { transform: scale(1.05); background: #334155; }
+        .class-card.active { border-color: #38bdf8; box-shadow: 0 0 20px rgba(56,189,248,0.5); }
+        .class-title { font-family: 'Orbitron'; font-size: 24px; margin-bottom: 10px; }
+        .class-desc { font-size: 14px; color: #94a3b8; text-align: center; }
+
+        /* IN-GAME HUD */
+        #game-ui { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+        #hud-player { position: absolute; bottom: 30px; left: 30px; background: rgba(2, 6, 23, 0.85); border-left: 5px solid #38bdf8; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
+        .bar-container { width: 250px; height: 18px; background: #0f172a; border-radius: 9px; margin-top: 10px; border: 2px solid #334155; overflow: hidden; position: relative; }
+        .fill { height: 100%; transition: width 0.2s ease-out; }
+        #hp-text { position: absolute; width: 100%; text-align: center; font-size: 12px; line-height: 14px; color: white; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        
+        #map-info { position: absolute; top: 20px; right: 30px; text-align: right; font-family: 'Orbitron'; }
+        #map-name { font-size: 24px; color: #fff; text-shadow: 0 0 10px #fff; }
+
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* CRT SCANLINE EFFECT */
+        .scanlines { position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 4px, 6px 100%; pointer-events: none; z-index: 99; opacity: 0.3; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+    <!-- SCREEN: LOGIN -->
+    <div id="login-screen">
+        <div class="box">
+            <h1>LAST WORD</h1>
+            <p class="subtitle">ULTRA COMPETITIVE ENGINE</p>
+            <input type="text" id="username" placeholder="ENTER CALLSIGN" autocomplete="off" maxlength="12">
+            <input type="password" id="secretKey" placeholder="ADMIN / SHADOW KEY (OPTIONAL)">
+            <button class="btn-primary" onclick="connectToServer()">INITIALIZE CONNECTION</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: LOBBY -->
+    <div id="lobby-screen">
+        <h1 style="margin-bottom: 20px;">TACTICAL LOBBY</h1>
+        <div class="lobby-container">
+            <!-- PANEL DE JUGADORES -->
+            <div class="panel roster-panel">
+                <h2 style="font-family: 'Orbitron'; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">OPERATORS</h2>
+                <div id="player-list"></div>
+            </div>
+
+            <!-- PANEL DE CLASES -->
+            <div class="panel class-panel">
+                <div class="class-card" id="card-ASSAULT" onclick="selectClass('ASSAULT')" style="border-color: #38bdf8;">
+                    <div class="class-title" style="color: #38bdf8;">ASSAULT</div>
+                    <div class="class-desc">Balanced Fighter.<br>Medium HP, Double Jump.</div>
+                </div>
+                <div class="class-card" id="card-HEAVY" onclick="selectClass('HEAVY')">
+                    <div class="class-title" style="color: #ef4444;">HEAVY</div>
+                    <div class="class-desc">Walking Tank.<br>High HP, Huge Damage, Slow.</div>
+                </div>
+                <div class="class-card" id="card-GHOST" onclick="selectClass('GHOST')">
+                    <div class="class-title" style="color: #10b981;">GHOST</div>
+                    <div class="class-desc">Speed Demon.<br>Low HP, Triple Jump, Fast Fire.</div>
+                </div>
+                <div class="class-card" id="card-NINJA" onclick="selectClass('NINJA')">
+                    <div class="class-title" style="color: #a855f7;">SHADOW (LOCKED)</div>
+                    <div class="class-desc">Admin/VIP Only.<br>Extreme Mobility & Aura.</div>
+                </div>
+            </div>
+
+            <!-- PANEL ADMIN -->
+            <div class="panel admin-panel" id="admin-panel">
+                <h2 style="font-family: 'Orbitron'; color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">DIRECTOR OVERRIDE</h2>
+                <p style="margin-top: 15px; font-size: 14px; color: #94a3b8;">CURRENT MAP:</p>
+                <h3 id="lobby-map-name" style="color: #fff; margin-bottom: 15px;">LOADING...</h3>
+                <button class="btn-primary" style="background: #334155;" onclick="socket.emit('adminAction', {action: 'CHANGE_MAP'})">CYCLE MAP</button>
+                <button class="btn-admin" id="btn-start" onclick="socket.emit('adminAction', {action: 'START_GAME'})">DEPLOY MISSION (START)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: GAME HUD -->
+    <div id="game-ui">
+        <div id="map-info">
+            <div id="map-name">CYBER CITY NEON</div>
+            <div style="color: #38bdf8; font-size: 14px;">TACTICAL DEPLOYMENT ACTIVE</div>
+        </div>
+        <div id="hud-player">
+            <h2 id="hud-name" style="font-family:'Orbitron'; font-size: 22px;">OPERATOR</h2>
+            <p id="hud-class" style="color:#38bdf8; font-size:14px; font-weight: bold; letter-spacing: 2px;">ASSAULT</p>
+            <div class="bar-container">
+                <div id="hp-fill" class="fill" style="background: linear-gradient(90deg, #0ea5e9, #38bdf8); width: 100%;"></div>
+                <div id="hp-text">100 / 100</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+
+    <script>
+        // ==========================================
+        // 🚀 INICIALIZACIÓN Y GLOBALES
+        // ==========================================
+        const socket = io();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+        let myId = null;
+        let gameState = { players: {}, bullets: [] };
+        let currentMap = null;
+        
+        // Efectos de Cámara
+        let camera = { x: 0, y: 0, shakeX: 0, shakeY: 0, shakeIntensity: 0 };
+        const inputs = { left: false, right: false, upTrigger: false, aimAngle: 0 };
+
+        // Motores Visuales Locales
+        let particles = [];
+        let floatingTexts = [];
+        let shockwaves = [];
+        const localStates = {};
+
+        // ==========================================
+        // 📡 LÓGICA DE RED (SOCKETS)
+        // ==========================================
+        function connectToServer() {
+            socket.emit('joinLobby', {
+                name: document.getElementById('username').value,
+                adminKey: document.getElementById('secretKey').value
             });
         }
-    }
-];
 
-function checkCollision(r1, r2) {
-    return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
-           r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
-}
+        socket.on('lobbyData', (data) => {
+            myId = data.me.id;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('lobby-screen').style.display = 'flex';
+            
+            if(data.me.isAdmin) {
+                document.getElementById('admin-panel').style.display = 'flex';
+                document.getElementById('btn-start').style.display = 'block';
+            }
+            if(data.me.isNinja) {
+                document.getElementById('card-NINJA').style.borderColor = '#a855f7';
+                document.querySelector('#card-NINJA .class-title').innerText = "SHADOW (UNLOCKED)";
+            }
+            document.getElementById('lobby-map-name').innerText = data.map.name;
+        });
 
-// Bucle de Eventos Competitivos Tácticos (Cada 15 segundos)
-setInterval(() => {
-    if (Object.keys(PLAYERS).length === 0) return;
+        socket.on('updateLobbyPlayers', (players) => {
+            const list = document.getElementById('player-list');
+            list.innerHTML = "";
+            Object.values(players).forEach(p => {
+                list.innerHTML += `<div class="player-item">
+                    <span>${p.name} <span class="role">[${p.charClass}]</span></span>
+                    <span style="color:${p.isAdmin?'#ef4444':'#64748b'}">${p.role}</span>
+                </div>`;
+            });
+        });
 
-    const currentEvent = EVENT_POOL[Math.floor(Math.random() * EVENT_POOL.length)];
-    const pKeys = Object.keys(PLAYERS);
-    
-    // Asimetría: Solo algunos jugadores reciben la advertencia real
-    const luckyPlayerId = pKeys[Math.floor(Math.random() * pKeys.length)];
-    
-    pKeys.forEach(id => {
-        if (id === luckyPlayerId) {
-            TACTICAL_NOTICES[id] = { text: `📡 [INTEL]: ${currentEvent.msg}`, color: '#38bdf8' };
-        } else {
-            TACTICAL_NOTICES[id] = { text: "📡 [INTEL]: Static noise... Radio signal lost.", color: '#64748b' };
+        socket.on('mapChanged', (map) => {
+            document.getElementById('lobby-map-name').innerText = map.name;
+        });
+
+        function selectClass(className) {
+            document.querySelectorAll('.class-card').forEach(c => c.classList.remove('active'));
+            document.getElementById('card-' + className).classList.add('active');
+            socket.emit('selectClass', className);
         }
-    });
 
-    // Ejecutar el evento en el mundo después de 5 segundos
-    setTimeout(() => {
-        currentEvent.action();
-        io.emit('chatMessage', { sender: "SYSTEM", text: "⚠️ TACTICAL EVENT EXECUTED!", type: 'alert' });
-    }, 5000);
+        // ==========================================
+        // 🎮 TRANSICIÓN A JUEGO
+        // ==========================================
+        socket.on('gameStarted', (data) => {
+            currentMap = data.map;
+            gameState.players = data.players;
+            
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('map-name').innerText = currentMap.name;
+            
+            // Limpiar VFX
+            particles = []; floatingTexts = []; shockwaves = [];
+            
+            // Efecto Flash Bang al iniciar
+            shockwaves.push({ x: currentMap.width/2, y: currentMap.height/2, radius: 0, maxRadius: 5000, color: 'white', thickness: 50 });
+        });
 
-}, 15000);
-
-io.on('connection', (socket) => {
-    socket.on('joinGame', (data) => {
-        const username = data.name || "Operator";
-        const pass = data.adminKey ? data.adminKey.trim() : "";
-        const lowerName = username.trim().toLowerCase();
-
-        // VALIDACIÓN RIGUROSA DEL NINJA MEDIANTE SU CLAVE
-        let isNinja = (pass === NINJA_SECRET_KEY);
-        let isProfe = (lowerName === "profe");
-        let isWolfcute = (lowerName === "wolfcute");
-
-        let pRole = 'ROOKIE';
-        let color = '#10b981';
-
-        if (isNinja) { pRole = 'NINJA (SHADOW)'; color = '#a855f7'; }
-        else if (isProfe) { pRole = 'PROFE (MENTOR)'; color = '#38bdf8'; }
-        else if (isWolfcute) { pRole = 'WOLFCUTE (BEAST)'; color = '#ec4899'; }
-
-        PLAYERS[socket.id] = {
-            id: socket.id, name: username, pRole, color,
-            isNinja, isProfe, isWolfcute,
-            x: Math.random() * 1000 + 500, y: 1000,
-            w: 36, h: 54, vx: 0, vy: 0, aimAngle: 0,
-            hp: isNinja ? 140 : 100, maxHp: isNinja ? 140 : 100,
-            stamina: 100, dashCharges: isNinja ? 3 : 1,
-            abilityCD: 0, onGround: false, kills: 0
-        };
-
-        socket.emit('registered', { id: socket.id, platforms: PLATFORMS });
-        io.emit('chatMessage', { sender: "SYSTEM", text: `⚔️ ${username} joined as [${pRole}]`, type: 'system' });
-    });
-
-    socket.on('playerInput', (data) => {
-        const p = PLAYERS[socket.id];
-        if (!p || p.hp <= 0) return;
-
-        p.aimAngle = data.aimAngle || 0;
-        let spd = 1.5;
-        let maxSpd = 8;
-
-        if (data.left && p.vx > -maxSpd) p.vx -= spd;
-        if (data.right && p.vx < maxSpd) p.vx += spd;
-        if (data.up && p.onGround) { p.vy = -18; p.onGround = false; }
-    });
-
-    // SISTEMA DE HABILIDADES Y BALANCE DEL NINJA
-    socket.on('useAbilityTrigger', () => {
-        const p = PLAYERS[socket.id];
-        if (!p || p.hp <= 0 || p.abilityCD > 0) return;
-
-        let angle = p.aimAngle;
-
-        // 🥷 NINJA: ZIP -> AIR DASH (Consume Cargas)
-        if (p.isNinja) {
-            if (p.dashCharges > 0) {
-                p.vx = Math.cos(angle) * 32;
-                p.vy = Math.sin(angle) * 32;
-                p.dashCharges--;
-                p.abilityCD = 20; // CD corto entre dashes
+        socket.on('stateUpdate', (data) => {
+            gameState = data;
+            let me = gameState.players[myId];
+            if (me) {
+                document.getElementById('hud-name').innerText = me.name;
+                document.getElementById('hud-class').innerText = me.charClass;
+                document.getElementById('hud-class').style.color = me.color;
                 
-                // Regenerar carga cada 4 segundos
-                setTimeout(() => { if (p.dashCharges < 3) p.dashCharges++; }, 4000);
+                let hpPercent = Math.max(0, (me.hp / me.maxHp)*100);
+                document.getElementById('hp-fill').style.width = hpPercent + '%';
+                document.getElementById('hp-fill').style.background = me.color;
+                document.getElementById('hp-fill').style.boxShadow = `0 0 15px ${me.color}`;
+                document.getElementById('hp-text').innerText = `${Math.floor(me.hp)} / ${me.maxHp}`;
+                
+                // Efecto de daño crítico (HUD palpita)
+                if(hpPercent < 30) document.getElementById('hud-player').style.boxShadow = '0 0 30px rgba(239,68,68,0.8)';
+                else document.getElementById('hud-player').style.boxShadow = '0 0 20px rgba(0,0,0,0.9)';
             }
-        } 
-        // 📚 PROFE: MENTOR VISION (Traduce la última Intel pero revela ubicación)
-        else if (p.isProfe) {
-            let myNotice = TACTICAL_NOTICES[p.id];
-            if (myNotice) {
-                myNotice.text += " [TRANSLATED: ¡Peligro o Ventaja inminente!]";
-                myNotice.color = "#fcd34d";
-            }
-            // Muestra posición a los enemigos por breves segundos (Riesgo/Recompensa)
-            io.emit('revealProfe', { x: p.x, y: p.y });
-            p.abilityCD = 200;
-        }
-    });
+        });
 
-    socket.on('shoot', () => {
-        const p = PLAYERS[socket.id];
-        if (!p || p.hp <= 0) return;
-        BULLETS.push({ ownerId: socket.id, x: p.x + p.w/2, y: p.y + p.h/3, vx: Math.cos(p.aimAngle)*24, vy: Math.sin(p.aimAngle)*24, damage: 20, life: 60 });
-    });
+        socket.on('damageNumber', (data) => {
+            floatingTexts.push({ x: data.x, y: data.y - 20, text: `-${data.dmg}`, life: 40, color: '#ef4444', vy: -2 });
+            addCameraShake(5); // Mini temblor al golpear a alguien
+        });
 
-    socket.on('disconnect', () => delete PLAYERS[socket.id]);
-});
-
-// Bucle Principal de Física 60 FPS
-setInterval(() => {
-    Object.values(PLAYERS).forEach(p => {
-        if (p.hp <= 0) return;
-
-        if (p.abilityCD > 0) p.abilityCD--;
-        p.vy += 0.8;
-        p.vx *= p.onGround ? 0.85 : 0.95;
-        p.x += p.vx; p.y += p.vy;
-        p.onGround = false;
-
-        // Colisión con Plataformas Dinámicas
-        PLATFORMS.forEach(plat => {
-            if (plat.active && checkCollision(p, plat)) {
-                if (p.vy > 0 && p.y + p.h - p.vy <= plat.y) {
-                    p.y = plat.y - p.h; p.vy = 0; p.onGround = true;
+        // ==========================================
+        // 🕹️ CONTROLES Y EVENTOS CLIENTE
+        // ==========================================
+        window.addEventListener('keydown', e => { 
+            if(e.code==='KeyA') inputs.left=true; 
+            if(e.code==='KeyD') inputs.right=true; 
+            if((e.code==='KeyW'||e.code==='Space') && !inputs.upTrigger) { inputs.upTrigger=true; socket.emit('playerInput', inputs); inputs.upTrigger=false; } // Trigger de salto
+        });
+        window.addEventListener('keyup', e => { if(e.code==='KeyA') inputs.left=false; if(e.code==='KeyD') inputs.right=false; });
+        
+        window.addEventListener('mousemove', e => { 
+            if(gameState.players[myId]) inputs.aimAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2); 
+        });
+        
+        window.addEventListener('mousedown', e => { 
+            if(e.button===0 && currentMap) {
+                socket.emit('shoot');
+                addCameraShake(3); // Retroceso visual
+                
+                let me = gameState.players[myId];
+                if(me) {
+                    let gunX = me.x + me.w/2 + Math.cos(inputs.aimAngle) * 30;
+                    let gunY = me.y + me.h/2 + Math.sin(inputs.aimAngle) * 30;
+                    spawnParticles(gunX, gunY, '#fcd34d', 10, 8, 15, 3);
                 }
             }
         });
-    });
 
-    // Balas
-    BULLETS.forEach((b, i) => {
-        b.x += b.vx; b.y += b.vy; b.life--;
-        Object.values(PLAYERS).forEach(p => {
-            if (p.id !== b.ownerId && checkCollision({x: b.x-6, y: b.y-6, w: 12, h: 12}, p)) {
-                p.hp -= b.damage; b.life = 0;
+        setInterval(() => { if(currentMap) socket.emit('playerInput', {left: inputs.left, right: inputs.right, aimAngle: inputs.aimAngle}); }, 1000/60);
+
+        // ==========================================
+        // 🎇 MOTOR DE EFECTOS VISUALES (VFX)
+        // ==========================================
+        function spawnParticles(x, y, color, count, speed, lifeSpan, size) {
+            for(let i=0; i<count; i++) particles.push({ x, y, color, vx: (Math.random()-0.5)*speed*2, vy: (Math.random()-0.5)*speed*2, life: lifeSpan, maxLife: lifeSpan, size });
+        }
+
+        function addCameraShake(intensity) { camera.shakeIntensity = intensity; }
+
+        // ==========================================
+        // 🖌️ MOTOR DE RENDERIZADO PRINCIPAL
+        // ==========================================
+        function draw() {
+            requestAnimationFrame(draw);
+            if (!currentMap) return;
+
+            // 1. Limpiar Fondo
+            ctx.fillStyle = currentMap.bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let me = gameState.players[myId];
+            if (me) {
+                // Lerp Cámara Suave
+                let targetX = me.x + me.w/2 - canvas.width/2;
+                let targetY = me.y + me.h/2 - canvas.height/2;
+                camera.x += (targetX - camera.x) * 0.1;
+                camera.y += (targetY - camera.y) * 0.1;
+                
+                // Limitar cámara al mapa
+                camera.x = Math.max(0, Math.min(camera.x, currentMap.width - canvas.width));
+                camera.y = Math.max(0, Math.min(camera.y, currentMap.height - canvas.height));
             }
-        });
-        if (b.life <= 0) BULLETS.splice(i, 1);
-    });
 
-    io.emit('stateUpdate', { players: PLAYERS, bullets: BULLETS, platforms: PLATFORMS, notices: TACTICAL_NOTICES });
-}, 1000 / 60);
+            // Aplicar Screen Shake
+            if (camera.shakeIntensity > 0) {
+                camera.shakeX = (Math.random()-0.5) * camera.shakeIntensity;
+                camera.shakeY = (Math.random()-0.5) * camera.shakeIntensity;
+                camera.shakeIntensity *= 0.9;
+                if(camera.shakeIntensity < 0.5) camera.shakeIntensity = 0;
+            }
 
-http.listen(3000, () => console.log("🎮 LAST WORD: WAR OF WORDS running on port 3000"));
+            ctx.save();
+            ctx.translate(-(camera.x + camera.shakeX), -(camera.y + camera.shakeY));
+
+            // 2. PARALLAX BACKGROUND (Cuadrícula Gigante)
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 2;
+            const gridSize = 200;
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+            ctx.beginPath();
+            for(let x=startX; x<startX+canvas.width+gridSize; x+=gridSize) { ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y+canvas.height); }
+            for(let y=startY; y<startY+canvas.height+gridSize; y+=gridSize) { ctx.moveTo(camera.x, y); ctx.lineTo(camera.x+canvas.width, y); }
+            ctx.stroke();
+
+            // 3. PLATAFORMAS (Geometría del Nivel con Glow)
+            currentMap.platforms.forEach(p => {
+                let pGrad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+                let mainColor = '#1e293b'; let edgeColor = '#38bdf8';
+                
+                if(p.type === 'danger_zone') { mainColor = '#7f1d1d'; edgeColor = '#ef4444'; }
+                else if(p.type === 'bridge') { mainColor = '#78350f'; edgeColor = '#f59e0b'; }
+                else if(p.type === 'glass') { mainColor = 'rgba(56,189,248,0.2)'; edgeColor = '#bae6fd'; }
+                else if(p.type === 'wall') { mainColor = '#0f172a'; edgeColor = '#94a3b8'; }
+
+                pGrad.addColorStop(0, mainColor);
+                pGrad.addColorStop(1, '#020617');
+                
+                ctx.fillStyle = pGrad;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                
+                // Borde Neón
+                ctx.fillStyle = edgeColor;
+                ctx.shadowColor = edgeColor;
+                ctx.shadowBlur = (p.type==='danger_zone') ? 20 : 10;
+                ctx.fillRect(p.x, p.y, p.type==='wall'? 4 : p.w, p.type==='wall'? p.h : 4);
+                ctx.shadowBlur = 0;
+            });
+
+            // 4. JUGADORES (Con Squash/Stretch, Rostros y Auras)
+            const time = Date.now() * 0.005; // Tiempo para animaciones senoidales
+            
+            Object.values(gameState.players).forEach(p => {
+                if (p.hp <= 0) return;
+                
+                if (!localStates[p.id]) localStates[p.id] = { wasOnGround: true, trails: [] };
+                const local = localStates[p.id];
+
+                // Efecto de Polvo al caer
+                if (p.onGround && !local.wasOnGround) {
+                    spawnParticles(p.x + p.w/2, p.y + p.h, '#64748b', 15, 5, 20, 3);
+                    if(p.id === myId) addCameraShake(2);
+                }
+                local.wasOnGround = p.onGround;
+
+                // Ghost Trails (Para Ninja y Ghost)
+                if (p.charClass === 'NINJA' || p.charClass === 'GHOST') {
+                    if (Math.abs(p.vx) > 5 || Math.abs(p.vy) > 5) {
+                        local.trails.push({x: p.x, y: p.y, life: 10, maxLife: 10});
+                    }
+                }
+                local.trails.forEach((t, i) => {
+                    ctx.globalAlpha = t.life/t.maxLife * 0.5;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(t.x, t.y, p.w, p.h);
+                    t.life--;
+                    if(t.life<=0) local.trails.splice(i,1);
+                });
+                ctx.globalAlpha = 1;
+
+                // Squash & Stretch
+                let scaleX = 1 + Math.abs(p.vx)*0.01 - Math.abs(p.vy)*0.005;
+                let scaleY = 1 + Math.abs(p.vy)*0.01 - Math.abs(p.vx)*0.005;
+                scaleX = Math.max(0.7, Math.min(1.3, scaleX)); scaleY = Math.max(0.7, Math.min(1.3, scaleY));
+
+                ctx.save();
+                ctx.translate(p.x + p.w/2, p.y + p.h);
+                
+                // SISTEMA DE AURAS ÉPICAS
+                ctx.shadowColor = p.color;
+                if (p.aura === 'electric') {
+                    ctx.shadowBlur = 15 + Math.sin(time*2)*10;
+                } else if (p.aura === 'fire') {
+                    ctx.shadowBlur = 20 + Math.random()*15;
+                    if(Math.random()>0.8) spawnParticles(p.x+p.w/2, p.y+p.h, '#ef4444', 1, 2, 20, 2);
+                } else if (p.aura === 'shadow') {
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = '#7e22ce'; // Morado más oscuro
+                }
+
+                ctx.scale(scaleX, scaleY);
+
+                // CUERPO BASE
+                let grad = ctx.createLinearGradient(0, -p.h, 0, 0);
+                grad.addColorStop(0, p.color);
+                grad.addColorStop(1, '#020617');
+                ctx.fillStyle = grad;
+                
+                ctx.beginPath();
+                if(ctx.roundRect) ctx.roundRect(-p.w/2, -p.h, p.w, p.h, 8);
+                else ctx.fillRect(-p.w/2, -p.h, p.w, p.h);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // ROSTRO TÁCTICO
+                let aimX = Math.cos(p.aimAngle) * 6;
+                let aimY = Math.sin(p.aimAngle) * 6;
+
+                // Visor
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.beginPath();
+                if(ctx.roundRect) ctx.roundRect(-p.w/2 + 4 + aimX, -p.h + 10 + aimY, p.w - 8, 14, 4);
+                ctx.fill();
+
+                // Ojos
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 5;
+                ctx.fillRect(-8 + aimX, -p.h + 12 + aimY, 6, 10);
+                ctx.fillRect(2 + aimX, -p.h + 12 + aimY, 6, 10);
+                ctx.shadowBlur = 0;
+
+                // Pupilas
+                ctx.fillStyle = '#000';
+                ctx.fillRect(-6 + aimX*1.2, -p.h + 16 + aimY*1.2, 2, 4);
+                ctx.fillRect(4 + aimX*1.2, -p.h + 16 + aimY*1.2, 2, 4);
+
+                ctx.restore(); // Fin Transformaciones personaje
+
+                // Barra de HP sobre la cabeza
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(p.x, p.y - 15, p.w, 5);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y - 15, p.w * (p.hp/p.maxHp), 5);
+
+                // Nombre
+                ctx.fillStyle = '#fff'; ctx.font = "12px 'Orbitron'"; ctx.textAlign = "center";
+                ctx.fillText(p.name, p.x + p.w/2, p.y - 22);
+            });
+
+            // 5. BALAS Y PROYECTILES
+            gameState.bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.shadowColor = b.color;
+                ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+                
+                // Trail de la bala
+                spawnParticles(b.x, b.y, b.color, 1, 0.5, 10, b.size/2);
+            });
+            ctx.shadowBlur = 0;
+
+            // 6. ACTUALIZAR Y DIBUJAR PARTÍCULAS
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.3; // Gravedad particular
+                pt.life--;
+                
+                ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+                ctx.fillStyle = pt.color;
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1;
+                
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            // 7. ONDAS DE CHOQUE (Shockwaves)
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                let sw = shockwaves[i];
+                sw.radius += 50;
+                sw.thickness *= 0.9;
+                
+                ctx.strokeStyle = sw.color;
+                ctx.lineWidth = sw.thickness;
+                ctx.globalAlpha = Math.max(0, 1 - (sw.radius/sw.maxRadius));
+                ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI*2); ctx.stroke();
+                ctx.globalAlpha = 1;
+                
+                if(sw.radius > sw.maxRadius || sw.thickness < 0.5) shockwaves.splice(i, 1);
+            }
+
+            // 8. TEXTOS FLOTANTES (Daño)
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.life--;
+                
+                ctx.globalAlpha = Math.max(0, ft.life / 40);
+                ctx.fillStyle = ft.color;
+                ctx.font = "900 20px 'Orbitron'";
+                ctx.textAlign = "center";
+                ctx.shadowColor = 'black'; ctx.shadowBlur = 5;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+                
+                if(ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            ctx.restore(); // Restaurar cámara principal
+        }
+        draw();
+    </script>
+</body>
+</html>
