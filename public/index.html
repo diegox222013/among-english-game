@@ -2,238 +2,405 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>NATURE ARENA - BUFFED VERSION</title>
+    <title>NATURE ARENA - GRAPHICS UPDATE</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        #lobby-screen {
-            position: absolute; inset: 0;
-            background: radial-gradient(circle at center, #064e3b 0%, #020617 100%);
-            display: flex; align-items: center; justify-content: center; z-index: 10;
+        /* --- PANTALLAS DE LOBBY --- */
+        #main-lobby {
+            position: absolute; inset: 0; display: flex; z-index: 20;
         }
-        .lobby-card {
-            background: rgba(15, 23, 42, 0.9); border: 2px solid #34d399;
-            padding: 25px; border-radius: 16px; width: 480px; text-align: center;
-            box-shadow: 0 0 40px rgba(52, 211, 153, 0.3);
+        .lobby-half {
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.4s ease; position: relative; overflow: hidden;
         }
-        .form-group { margin-bottom: 12px; text-align: left; }
-        label { font-size: 12px; color: #a7f3d0; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        input, select, button { padding: 10px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; }
-        input, select { background: #1e293b; color: #fff; border: 1px solid #475569; outline: none; }
-        input:focus, select:focus { border-color: #34d399; }
-        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
-        button:hover { background: #10b981; transform: scale(1.02); }
+        .lobby-half:hover { flex: 1.2; filter: brightness(1.2); }
+        .play-side { background: linear-gradient(135deg, #064e3b, #020617); border-right: 2px solid #34d399; }
+        .tutorial-side { background: linear-gradient(135deg, #1e1b4b, #020617); border-left: 2px solid #818cf8; }
         
+        .huge-arrow {
+            font-size: 80px; text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            animation: bounce 1s infinite alternate; margin: 20px;
+        }
+        .lobby-title { font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .play-title { color: #34d399; text-shadow: 0 0 15px #10b981; }
+        .tutorial-title { color: #818cf8; text-shadow: 0 0 15px #4f46e5; }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(20px); }
+        }
+
+        /* --- FORMULARIOS --- */
+        .overlay-screen {
+            position: absolute; inset: 0; display: none; justify-content: center; align-items: center;
+            background: rgba(2, 6, 23, 0.9); z-index: 30; backdrop-filter: blur(5px);
+        }
+        .card {
+            background: rgba(15, 23, 42, 0.95); border-radius: 16px; padding: 30px; width: 450px;
+            box-shadow: 0 0 30px rgba(52, 211, 153, 0.2); border: 2px solid #34d399; text-align: center;
+        }
+        .card-tutorial { border-color: #818cf8; box-shadow: 0 0 30px rgba(129, 140, 248, 0.2); width: 600px; text-align: left; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { font-size: 12px; color: #a7f3d0; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        input, select, button { padding: 12px; font-size: 14px; border-radius: 8px; border: none; font-weight: bold; width: 100%; outline: none; }
+        input, select { background: #1e293b; color: #fff; border: 1px solid #475569; }
+        input:focus, select:focus { border-color: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.5); }
+        button { background: #34d399; color: #064e3b; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.2s; }
+        button:hover { background: #10b981; transform: scale(1.02); }
+        .btn-close { background: #ef4444; color: white; margin-top: 20px; }
+        .btn-close:hover { background: #dc2626; }
+
+        /* --- HUD Y CHAT --- */
         #hud {
-            position: absolute; top: 20px; left: 20px; pointer-events: none;
-            background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399;
-            padding: 15px; border-radius: 12px; font-size: 14px; text-shadow: 1px 1px 2px #000;
+            position: absolute; top: 20px; left: 20px; pointer-events: none; display: none;
+            background: rgba(15, 23, 42, 0.85); border: 2px solid #34d399; padding: 15px; border-radius: 12px;
+            box-shadow: 0 0 15px rgba(52,211,153,0.3); z-index: 10;
         }
         .hp-bar { background: #0f172a; height: 16px; width: 220px; border-radius: 8px; margin-top: 8px; overflow: hidden; border: 1px solid #334155; }
-        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.15s ease-out; }
+        .hp-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; transition: width 0.1s; }
+
+        #chat-container {
+            position: absolute; bottom: 20px; left: 20px; width: 350px; display: none; z-index: 10;
+            background: rgba(15, 23, 42, 0.7); border-radius: 12px; border: 1px solid #475569; overflow: hidden;
+            backdrop-filter: blur(4px); display: none; flex-direction: column;
+        }
+        #chat-messages {
+            height: 200px; overflow-y: auto; padding: 10px; font-size: 13px; color: #cbd5e1;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        #chat-messages span { line-height: 1.4; }
+        .msg-system { color: #fcd34d; font-style: italic; }
+        .msg-admin { color: #fbbf24; font-weight: bold; }
+        .msg-user { color: #34d399; font-weight: bold; }
+        #chat-input {
+            border: none; border-top: 1px solid #475569; border-radius: 0; background: rgba(30, 41, 59, 0.9);
+            padding: 10px; color: white; width: 100%; font-size: 13px;
+        }
+        #chat-input:focus { outline: none; background: rgba(51, 65, 85, 0.9); }
+
+        canvas { display: none; }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-<div id="lobby-screen">
-    <div class="lobby-card">
-        <h1 style="color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.5);">🌲 NATURE ARENA 🌿</h1>
-        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 15px;">Movimiento Ágil + Grapple Real</p>
-
-        <div class="form-group">
-            <label>Nombre de Operativo:</label>
-            <input type="text" id="username" placeholder="Tu Nombre" maxlength="12">
+    <!-- 1. PANTALLA DIVIDIDA PRINCIPAL -->
+    <div id="main-lobby">
+        <div class="lobby-half play-side" onclick="showScreen('config-screen')">
+            <div class="lobby-title play-title">ENTRAR AL CAMPO</div>
+            <div class="huge-arrow">⬇️</div>
+            <h2 style="color: #a7f3d0;">¡JUGAR AHORA!</h2>
         </div>
-
-        <div class="form-group">
-            <label>🔑 Clave Admin (Opcional):</label>
-            <input type="password" id="adminKey" placeholder="Solo Administrador">
+        <div class="lobby-half tutorial-side" onclick="showScreen('tutorial-screen')">
+            <div class="lobby-title tutorial-title">CENTRO DE ENTRENAMIENTO</div>
+            <div class="huge-arrow">⬇️</div>
+            <h2 style="color: #c7d2fe;">VER TUTORIAL</h2>
         </div>
-
-        <div class="form-group">
-            <label>Arma Primaria:</label>
-            <select id="weapon-select">
-                <option value="rifle">Rifle (Rápido y Constante)</option>
-                <option value="shotgun">Escopeta (Destrozo de Cerca)</option>
-                <option value="sniper">Ballesta Sniper (Larga Distancia)</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Habilidad Especial:</label>
-            <select id="skill-select">
-                <option value="grapple">🪝 Grapple Spiderman (Sostener Clic Der)</option>
-                <option value="vines">🌿 Trampa de Enredaderas</option>
-                <option value="tornado">🍃 Salto de Tornado</option>
-                <option value="slam">🪨 Pisotón Destructor</option>
-            </select>
-        </div>
-
-        <button onclick="startGame()">DESPLEGAR</button>
     </div>
-</div>
 
-<div id="hud">
-    <div id="player-info">Sincronizando satélite...</div>
-    <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
-</div>
+    <!-- 2. PANTALLA DE CONFIGURACIÓN (JUGAR) -->
+    <div id="config-screen" class="overlay-screen">
+        <div class="card">
+            <h2 style="color: #34d399; margin-bottom: 20px;">PREPARAR EQUIPAMIENTO</h2>
+            <div class="form-group"><label>Nombre:</label><input type="text" id="username" placeholder="Tu Nombre" maxlength="12"></div>
+            <div class="form-group"><label>Clave Admin (Opcional):</label><input type="password" id="adminKey"></div>
+            <div class="form-group">
+                <label>Arma:</label>
+                <select id="weapon-select">
+                    <option value="rifle">Rifle (Rápido)</option>
+                    <option value="shotgun">Escopeta (Ráfaga)</option>
+                    <option value="sniper">Sniper (Daño Alto)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Habilidad:</label>
+                <select id="skill-select">
+                    <option value="grapple">🪝 Grapple</option>
+                    <option value="vines">🌿 Enredaderas</option>
+                    <option value="tornado">🍃 Tornado</option>
+                    <option value="slam">🪨 Pisotón</option>
+                </select>
+            </div>
+            <button onclick="startGame()">DESPLEGAR</button>
+            <button class="btn-close" onclick="showScreen('main')">VOLVER</button>
+        </div>
+    </div>
 
-<canvas id="gameCanvas"></canvas>
+    <!-- 3. PANTALLA DE TUTORIAL -->
+    <div id="tutorial-screen" class="overlay-screen">
+        <div class="card card-tutorial">
+            <h2 style="color: #818cf8; margin-bottom: 15px; text-align: center;">📖 CÓMO JUGAR</h2>
+            <ul style="color: #e2e8f0; line-height: 1.8; margin-left: 20px;">
+                <li><b>Movimiento:</b> Usa <kbd>A</kbd> y <kbd>D</kbd> para moverte.</li>
+                <li><b>Saltar:</b> <kbd>W</kbd> o <kbd>ESPACIO</kbd>.</li>
+                <li><b>Apuntar y Disparar:</b> Mueve el ratón y presiona <b>Clic Izquierdo</b>.</li>
+                <li><b>Habilidad Especial:</b> Presiona o Mantén <b>Clic Derecho</b> según tu clase.</li>
+                <li><b>Chat:</b> Presiona <kbd>ENTER</kbd> durante la partida para hablar con otros.</li>
+                <li><b>Caídas:</b> ¡Si te caes al vacío, perderás la vida y reaparecerás!</li>
+            </ul>
+            <button class="btn-close" onclick="showScreen('main')">ENTENDIDO</button>
+        </div>
+    </div>
 
-<script>
-    const socket = io();
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    <!-- INTERFAZ IN-GAME -->
+    <div id="hud">
+        <div id="player-info">Sincronizando...</div>
+        <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
+    </div>
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    <div id="chat-container">
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Presiona ENTER para hablar..." autocomplete="off">
+    </div>
 
-    let myId = null;
-    let platforms = [];
-    let gameState = { players: {}, bullets: [], vines: [], tornados: [] };
+    <canvas id="gameCanvas"></canvas>
 
-    const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
-    let mouse = { x: 0, y: 0 };
-    
-    // Variables para Cámara Suave
-    let currentCamX = 0;
-    let currentCamY = 0;
+    <script>
+        const socket = io();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-    function startGame() {
-        const name = document.getElementById('username').value || "Jugador";
-        const adminKey = document.getElementById('adminKey').value;
-        const weapon = document.getElementById('weapon-select').value;
-        const skill = document.getElementById('skill-select').value;
+        let myId = null;
+        let platforms = [];
+        let gameState = { players: {}, bullets: [], vines: [], tornados: [] };
+        const inputs = { left: false, right: false, up: false, holdingRightClick: false, aimAngle: 0, targetPoint: { x: 0, y: 0 } };
+        let mouse = { x: 0, y: 0 };
+        let currentCamX = 0; let currentCamY = 0;
+        let isPlaying = false;
 
-        socket.emit('joinGame', { name, adminKey, weapon, skill });
-        document.getElementById('lobby-screen').style.display = 'none';
-    }
-
-    socket.on('registered', data => { myId = data.id; platforms = data.platforms; });
-    socket.on('stateUpdate', data => gameState = data);
-
-    window.addEventListener('keydown', e => {
-        if (e.code === 'KeyA') inputs.left = true;
-        if (e.code === 'KeyD') inputs.right = true;
-        if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
-    });
-    window.addEventListener('keyup', e => {
-        if (e.code === 'KeyA') inputs.left = false;
-        if (e.code === 'KeyD') inputs.right = false;
-        if (e.code === 'KeyW' || e.code === 'Space') inputs.up = false;
-    });
-    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-    window.addEventListener('mousedown', e => {
-        if (e.button === 0) socket.emit('shoot');
-        if (e.button === 2) {
-            inputs.holdingRightClick = true;
-            socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
+        // MANEJO DE PANTALLAS
+        function showScreen(screen) {
+            document.getElementById('main-lobby').style.display = screen === 'main' ? 'flex' : 'none';
+            document.getElementById('config-screen').style.display = screen === 'config-screen' ? 'flex' : 'none';
+            document.getElementById('tutorial-screen').style.display = screen === 'tutorial-screen' ? 'flex' : 'none';
         }
-    });
-    window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
-    window.addEventListener('contextmenu', e => e.preventDefault());
 
-    setInterval(() => {
-        let me = gameState.players[myId];
-        if (me) {
-            inputs.aimAngle = Math.atan2((mouse.y + currentCamY) - (me.y + me.h/3), (mouse.x + currentCamX) - (me.x + me.w/2));
-            inputs.targetPoint = { x: mouse.x + currentCamX, y: mouse.y + currentCamY };
+        function startGame() {
+            const name = document.getElementById('username').value || "Jugador";
+            const adminKey = document.getElementById('adminKey').value;
+            const weapon = document.getElementById('weapon-select').value;
+            const skill = document.getElementById('skill-select').value;
+
+            socket.emit('joinGame', { name, adminKey, weapon, skill });
+            
+            document.getElementById('config-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('chat-container').style.display = 'flex';
+            canvas.style.display = 'block';
+            isPlaying = true;
         }
-        socket.emit('playerInput', inputs);
-    }, 1000 / 60);
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // RED
+        socket.on('registered', data => { myId = data.id; platforms = data.platforms; });
+        socket.on('stateUpdate', data => gameState = data);
         
-        let me = gameState.players[myId];
-        if (me) {
-            // Interpolación de cámara para movimiento fluido (Lerp)
-            let targetCamX = me.x - canvas.width / 2;
-            let targetCamY = me.y - canvas.height / 2;
-            currentCamX += (targetCamX - currentCamX) * 0.1; 
-            currentCamY += (targetCamY - currentCamY) * 0.1;
-        }
-
-        ctx.save();
-        ctx.translate(-currentCamX, -currentCamY);
-
-        // Fondo de cielo nocturno fijo con la cámara (Parallax falso)
-        ctx.fillStyle = '#020617';
-        ctx.fillRect(currentCamX, currentCamY, canvas.width, canvas.height);
-
-        // Mapa
-        platforms.forEach(plat => {
-            if (plat.type === 'grass') {
-                ctx.fillStyle = '#065f46'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-                ctx.fillStyle = '#10b981'; ctx.fillRect(plat.x, plat.y, plat.w, 8); // Pasto superior
-            } else if (plat.type === 'wood' || plat.type === 'leaves') {
-                ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#78350f';
-                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+        // CHAT RED
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        
+        socket.on('chatMessage', data => {
+            const msgEl = document.createElement('span');
+            if (data.type === 'system') {
+                msgEl.className = 'msg-system';
+                msgEl.innerText = data.text;
             } else {
-                ctx.fillStyle = '#334155'; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                msgEl.innerHTML = `<span class="${data.isAdmin ? 'msg-admin' : 'msg-user'}">[${data.sender}]</span>: ${data.text}`;
+            }
+            chatMessages.appendChild(msgEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+        });
+
+        // INPUTS (Bloquear WASD si se está en el chat)
+        window.addEventListener('keydown', e => {
+            if (!isPlaying) return;
+
+            // Lógica del Chat
+            if (e.key === 'Enter') {
+                if (document.activeElement === chatInput) {
+                    socket.emit('sendChat', chatInput.value);
+                    chatInput.value = '';
+                    chatInput.blur(); // Salir del chat
+                } else {
+                    chatInput.focus(); // Entrar al chat
+                }
+                return;
+            }
+
+            // Si estoy escribiendo, ignorar WASD
+            if (document.activeElement === chatInput) return;
+
+            if (e.code === 'KeyA') inputs.left = true;
+            if (e.code === 'KeyD') inputs.right = true;
+            if (e.code === 'KeyW' || e.code === 'Space') inputs.up = true;
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'KeyA') inputs.left = false;
+            if (e.code === 'KeyD') inputs.right = false;
+            if (e.code === 'KeyW' || e.code === 'Space') inputs.up = false;
+        });
+
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousedown', e => {
+            if (!isPlaying || document.activeElement === chatInput) return;
+            if (e.button === 0) socket.emit('shoot');
+            if (e.button === 2) {
+                inputs.holdingRightClick = true;
+                socket.emit('useAbilityTrigger', { targetPoint: inputs.targetPoint });
             }
         });
+        window.addEventListener('mouseup', e => { if (e.button === 2) inputs.holdingRightClick = false; });
+        window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Habilidades Ambientales
-        (gameState.vines || []).forEach(v => {
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.6)'; ctx.fillRect(v.x, v.y, v.w, v.h);
-        });
-        (gameState.tornados || []).forEach(t => {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.2)'; ctx.fillRect(t.x, t.y, t.w, t.h);
-        });
-
-        // Jugadores
-        Object.values(gameState.players).forEach(p => {
-            if (p.hp > 0) {
-                // Render de la Cuerda (Físicas Vistas)
-                if (p.grapple && p.grapple.active) {
-                    ctx.strokeStyle = '#cbd5e1';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(p.x + p.w/2, p.y + 10);
-                    ctx.lineTo(p.grapple.x, p.grapple.y);
-                    ctx.stroke();
-                    
-                    // Ancla roja donde choca
-                    ctx.fillStyle = '#ef4444';
-                    ctx.beginPath(); ctx.arc(p.grapple.x, p.grapple.y, 4, 0, Math.PI*2); ctx.fill();
-                }
-
-                // Cuerpo
-                ctx.fillStyle = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
-                ctx.fillRect(p.x, p.y, p.w, p.h);
-
-                // Ojos
-                let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(p.x + (dir > 0 ? 20 : 4), p.y + 8, 8, 4);
-
-                if (p.isAdmin) {
-                    ctx.fillStyle = '#fbbf24'; ctx.fillText('👑 ADMIN', p.x + p.w/2 - 20, p.y - 25);
-                }
-                ctx.fillStyle = '#fff'; ctx.fillText(p.name, p.x + p.w/2 - 20, p.y - 10);
+        setInterval(() => {
+            if (!isPlaying) return;
+            let me = gameState.players[myId];
+            if (me) {
+                inputs.aimAngle = Math.atan2((mouse.y + currentCamY) - (me.y + me.h/3), (mouse.x + currentCamX) - (me.x + me.w/2));
+                inputs.targetPoint = { x: mouse.x + currentCamX, y: mouse.y + currentCamY };
+                socket.emit('playerInput', inputs);
             }
-        });
+        }, 1000 / 60);
 
-        // Balas mejoradas
-        gameState.bullets.forEach(b => {
-            ctx.fillStyle = b.damage > 30 ? '#ef4444' : (b.damage < 15 ? '#f59e0b' : '#38bdf8');
-            ctx.beginPath(); ctx.arc(b.x, b.y, b.damage > 30 ? 6 : 4, 0, Math.PI*2); ctx.fill();
-        });
+        // --- DIBUJADO (BUFF GRÁFICO) ---
+        function drawGrid(ctx, camX, camY) {
+            ctx.strokeStyle = "rgba(52, 211, 153, 0.05)";
+            ctx.lineWidth = 1;
+            const gridSize = 100;
+            const startX = Math.floor(camX / gridSize) * gridSize;
+            const startY = Math.floor(camY / gridSize) * gridSize;
 
-        ctx.restore();
-
-        if (me) {
-            document.getElementById('player-info').innerHTML = 
-                `Soldado: <b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} <br> Bajas Confirmadas: <b>${me.score}</b>`;
-            document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
+            ctx.beginPath();
+            for (let x = startX; x < camX + canvas.width; x += gridSize) {
+                ctx.moveTo(x, camY); ctx.lineTo(x, camY + canvas.height);
+            }
+            for (let y = startY; y < camY + canvas.height; y += gridSize) {
+                ctx.moveTo(camX, y); ctx.lineTo(camX + canvas.width, y);
+            }
+            ctx.stroke();
         }
 
-        requestAnimationFrame(draw);
-    }
-    draw();
-</script>
+        function draw() {
+            if (!isPlaying) return requestAnimationFrame(draw);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let me = gameState.players[myId];
+            
+            if (me) {
+                let targetCamX = me.x - canvas.width / 2;
+                let targetCamY = me.y - canvas.height / 2;
+                currentCamX += (targetCamX - currentCamX) * 0.1; 
+                currentCamY += (targetCamY - currentCamY) * 0.1;
+            }
+
+            ctx.save();
+            ctx.translate(-currentCamX, -currentCamY);
+
+            // Fondo oscuro
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(currentCamX, currentCamY, canvas.width, canvas.height);
+            
+            // Cuadrícula futurista (GRID)
+            drawGrid(ctx, currentCamX, currentCamY);
+
+            // Plataformas con Neon/Bordes
+            platforms.forEach(plat => {
+                ctx.shadowBlur = 10;
+                if (plat.type === 'grass') {
+                    ctx.shadowColor = '#065f46'; ctx.fillStyle = '#064e3b';
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.fillStyle = '#10b981'; ctx.fillRect(plat.x, plat.y, plat.w, 6);
+                } else if (plat.type === 'wood' || plat.type === 'leaves') {
+                    ctx.shadowColor = '#78350f'; ctx.fillStyle = plat.type === 'leaves' ? '#047857' : '#451a03';
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2; ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                } else {
+                    ctx.shadowColor = '#475569'; ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                }
+                ctx.shadowBlur = 0; // Apagar glow
+            });
+
+            // Habilidades
+            (gameState.vines || []).forEach(v => {
+                ctx.shadowBlur = 15; ctx.shadowColor = '#10b981';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.7)'; ctx.fillRect(v.x, v.y, v.w, v.h);
+            });
+            (gameState.tornados || []).forEach(t => {
+                ctx.shadowBlur = 20; ctx.shadowColor = '#38bdf8';
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; ctx.fillRect(t.x, t.y, t.w, t.h);
+            });
+            ctx.shadowBlur = 0;
+
+            // Jugadores
+            Object.values(gameState.players).forEach(p => {
+                if (p.hp > 0) {
+                    // Cuerda del Grapple
+                    if (p.grapple && p.grapple.active) {
+                        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(p.x + p.w/2, p.y + 10); ctx.lineTo(p.grapple.x, p.grapple.y); ctx.stroke();
+                        ctx.fillStyle = '#ef4444'; ctx.shadowBlur = 10; ctx.shadowColor = 'red';
+                        ctx.beginPath(); ctx.arc(p.grapple.x, p.grapple.y, 4, 0, Math.PI*2); ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+
+                    // Glow del Jugador
+                    let isEnemy = (p.id !== myId);
+                    let baseColor = p.classType === 'NINJA' ? '#0ea5e9' : '#10b981';
+                    if(isEnemy) baseColor = '#ef4444'; // Enemigos en rojo
+
+                    ctx.shadowBlur = 15; ctx.shadowColor = baseColor;
+                    
+                    // Cuerpo redondeado
+                    ctx.fillStyle = baseColor;
+                    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 5); ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Ojo / Visor apuntando a donde mira
+                    let dir = Math.cos(p.aimAngle) > 0 ? 1 : -1;
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.roundRect(p.x + (dir > 0 ? 18 : 4), p.y + 10, 10, 6, 2); ctx.fill();
+
+                    // Nombres
+                    ctx.fillStyle = p.isAdmin ? '#fbbf24' : '#fff';
+                    ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+                    ctx.fillText(p.name + (p.isAdmin ? ' 👑' : ''), p.x + p.w/2, p.y - 12);
+                    ctx.textAlign = "left";
+                }
+            });
+
+            // Proyectiles con rastro brillante
+            gameState.bullets.forEach(b => {
+                let color = b.damage > 30 ? '#ef4444' : (b.damage < 15 ? '#f59e0b' : '#38bdf8');
+                ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+                
+                // Forma alargada (bala en movimiento)
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(Math.atan2(b.vy, b.vx));
+                ctx.beginPath(); ctx.roundRect(-8, -2, 16, 4, 2); ctx.fill();
+                ctx.restore();
+                
+                ctx.shadowBlur = 0;
+            });
+
+            ctx.restore();
+
+            // Actualizar HUD
+            if (me) {
+                document.getElementById('player-info').innerHTML = 
+                    `<b style="color:#34d399">${me.name}</b> ${me.isAdmin ? '👑' : ''} <br> Bajas: <b>${me.score}</b>`;
+                document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + '%';
+            }
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
 </body>
 </html>
